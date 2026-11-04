@@ -26,9 +26,10 @@
     <button id="themeBtn" class="rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm hover:bg-slate-200 dark:hover:bg-slate-800" aria-label="Cambia tema">Tema</button>
   </header>
 
+  <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">1 · Scegli la tipologia</p>
   <div id="types" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-5"></div>
 
-  <div class="grid lg:grid-cols-2 gap-5">
+  <div class="space-y-5">
     <section class="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 md:p-5">
       <div class="flex items-center justify-between mb-4">
         <h2 id="formTitle" class="font-semibold"></h2>
@@ -38,17 +39,21 @@
     </section>
 
     <section class="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 md:p-5 flex flex-col">
+      <h2 class="font-semibold mb-3">3 · Note pronte da copiare</h2>
       <div class="flex gap-4 overflow-x-auto whitespace-nowrap border-b border-slate-200 dark:border-slate-700 mb-3" role="tablist">
         <button class="tabbtn border-b-2 border-transparent pb-2 text-sm" role="tab" data-tab="int" aria-selected="true">Work Note interna</button>
         <button class="tabbtn border-b-2 border-transparent pb-2 text-sm" role="tab" data-tab="usr" aria-selected="false">Commento per l'utente</button>
         <button class="tabbtn border-b-2 border-transparent pb-2 text-sm" role="tab" data-tab="cls" aria-selected="false">Nota di chiusura</button>
       </div>
-      <textarea id="out" class="inp flex-1 min-h-[22rem] font-mono leading-relaxed" spellcheck="false"></textarea>
-      <p id="hint" class="text-xs text-slate-500 dark:text-slate-400 mt-1"></p>
-      <div id="chk"></div>
+      <p id="hint" class="text-xs text-slate-500 dark:text-slate-400 mb-2"></p>
+      <div class="grid lg:grid-cols-3 gap-4 items-start">
+        <textarea id="out" class="inp lg:col-span-2 min-h-[18rem] font-mono leading-relaxed resize-none" spellcheck="false"></textarea>
+        <div id="chk"></div>
+      </div>
       <div class="flex flex-wrap gap-2 mt-3">
         <button id="copyBtn" class="flex-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-semibold px-4 py-2.5">Copia nota</button>
         <button id="saveBtn" class="rounded-lg border border-teal-600 text-teal-700 dark:text-teal-400 font-semibold px-4 py-2.5 hover:bg-teal-50 dark:hover:bg-slate-700">Salva nella cronologia</button>
+        <button id="newBtn" class="rounded-lg border border-slate-300 dark:border-slate-600 font-semibold px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-700">Nuovo ticket</button>
       </div>
     </section>
   </div>
@@ -134,19 +139,20 @@ function renderTypes(){
 
 const PC=['bg-emerald-600 border-emerald-600','bg-amber-500 border-amber-500','bg-indigo-600 border-indigo-600','bg-slate-600 border-slate-600'];
 const HINTS={int:'Work Notes: dettagli tecnici visibili solo al team. Scrivi per un estraneo, senza sigle ambigue.',usr:'Comments: solo ciò che deve vedere il cliente. Niente password o dati riservati.',cls:'Close notes: si inseriscono insieme al Resolution/Close code. La nota deve reggersi da sola.'};
+function fit(){const o=$('#out');o.style.height='auto';o.style.height=Math.max(288,o.scrollHeight+4)+'px'}
 function hint(){$('#hint').textContent=HINTS[tab]+' Il testo è modificabile prima della copia.'}
 function renderChk(c){
-  const b=$('#chk');b.innerHTML='';b.className='mt-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 p-3';
+  const b=$('#chk');b.innerHTML='';b.className='rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 p-3';
   b.appendChild(el('div','text-xs font-semibold uppercase tracking-wide mb-1',c.title));
   c.items.forEach(([l,ok,w])=>b.appendChild(el('div','text-sm '+(ok?'text-emerald-700 dark:text-emerald-400':w?'text-red-600 dark:text-red-400 font-semibold':'text-slate-500 dark:text-slate-400'),(ok?'✔ ':w?'⚠ ':'☐ ')+l)));
 }
 function renderForm(){
-  const T=TYPES[cur];$('#formTitle').textContent=T.n;
+  const T=TYPES[cur];$('#formTitle').textContent='2 · Compila i dati · '+T.n;
   const f=$('#form');f.innerHTML='';
-  const grid=el('div','grid sm:grid-cols-2 gap-3');
+  const grid=el('div','grid sm:grid-cols-2 lg:grid-cols-3 gap-3 grid-flow-dense');
   [...COMMON_TOP,...T.f,...COMMON_BOT].forEach(fd=>{
     if(fd.s&&!fd.s(data))return;
-    const w=el('div',['area','chk','pill'].includes(fd.t)?'sm:col-span-2':'');
+    const w=el('div',fd.t==='chk'||fd.t==='pill'?'sm:col-span-2 lg:col-span-3':fd.t==='area'?'sm:col-span-2':'');
     w.appendChild(el('label','lbl',fd.l));
     let i;
     if(fd.t==='pill'){
@@ -242,18 +248,20 @@ function build(){
 }
 
 let texts={int:'',usr:'',cls:''};
-function gen(){texts=build();$('#out').value=texts[tab];renderChk(texts.chk);hint()}
+function gen(){texts=build();$('#out').value=texts[tab];renderChk(texts.chk);hint();fit()}
 
 document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{
   texts[tab]=$('#out').value;tab=b.dataset.tab;
   document.querySelectorAll('.tabbtn').forEach(x=>x.setAttribute('aria-selected',x===b));
-  $('#out').value=texts[tab];hint()});
+  $('#out').value=texts[tab];hint();fit()});
 
 async function copy(txt){
   try{await navigator.clipboard.writeText(txt)}catch(e){const t=el('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove()}
   toast('Nota copiata negli appunti');
 }
 $('#copyBtn').onclick=()=>copy($('#out').value);
+$('#out').addEventListener('input',fit);
+$('#newBtn').onclick=()=>{data={};renderForm();gen();scrollTo({top:0,behavior:'smooth'});toast('Pronto per un nuovo ticket')};
 $('#clearBtn').onclick=()=>{data={};renderForm();gen();toast('Campi puliti')};
 
 $('#saveBtn').onclick=()=>{
