@@ -104,7 +104,7 @@ const CH=['Telefono','Email','Portale','Chat','Di persona'];
 const CP=['Cliente non risponde','Ticket duplicato','Fuori perimetro'];
 const S=i=>d=>d.stato===STATI[i];
 const COMMON_BOT=[
- {id:'risultati',l:'Verifiche e risultati (anche cosa NON è stato fatto e perché)',t:'area'},
+ {id:'risultati',l:'Esito delle verifiche (anche cosa NON è stato fatto e perché)',t:'area'},
  {id:'evidenze',l:'Evidenze (errori, log, riferimenti)',t:'area'},
  {id:'allegato',l:'Allegato',t:'flag',l2:'Il ticket ha un allegato (screenshot, log, foto)',x:{when:true,p:'Cosa contiene? (facoltativo)'}},
  {id:'stato',l:'Stato finale',t:'pill',o:STATI},
@@ -133,7 +133,15 @@ function el(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=
 const PC=['bg-emerald-600 border-emerald-600','bg-amber-500 border-amber-500','bg-indigo-600 border-indigo-600','bg-slate-600 border-slate-600'];
 const HINTS={int:'Work Notes: dettagli tecnici visibili solo al team. Scrivi per un estraneo, senza sigle ambigue.',usr:'Comments: solo ciò che deve vedere il cliente. Niente password o dati riservati.',cls:'Close notes: la nota deve reggersi da sola, comprensibile anche a chi non ha seguito il ticket.'};
 function fit(){const o=$('#out');o.style.height='auto';o.style.height=Math.max(288,o.scrollHeight+4)+'px'}
-function hint(){$('#hint').textContent=HINTS[tab]+' Il testo è modificabile prima della copia.'}
+const VIS=[['int','usr','cls'],['int','usr'],['int','usr'],['usr','cls']];
+const TNAME={int:'Work Note',usr:"commento per l'utente",cls:'nota di chiusura'};
+function showTabs(){
+  const vis=cur?VIS[Math.max(0,STATI.indexOf(data.stato||STATI[0]))]:['int','usr'];
+  if(!vis.includes(tab))tab=vis[0];
+  document.querySelectorAll('.tabbtn').forEach(b=>{b.classList.toggle('hidden',!vis.includes(b.dataset.tab));b.setAttribute('aria-selected',b.dataset.tab===tab)});
+  return vis;
+}
+function hint(){$('#hint').textContent=HINTS[tab]+' Il testo è modificabile prima della copia.';$('#copyBtn').textContent='Copia '+TNAME[tab]}
 function renderChk(c){
   const b=$('#chk');b.innerHTML='';b.className='rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 p-3';
   b.appendChild(el('div','text-xs font-semibold uppercase tracking-wide mb-1',c.title));
@@ -209,13 +217,13 @@ function build(){
 
   // 1) WORK NOTE interna: Motivo / Verifiche / Evidenze / Richiesta (routing)
   const head=`${si===2?'WORK NOTE · ROUTING → '+grp:'WORK NOTE'}\nTicket ${tk||'(n. da inserire)'} · ${T.n}\n${cl?'Cliente: '+cl+'\n':''}Utente: ${u||'non indicato'}\nStato: ${st}${cp?' ('+cp+')':''}\nAllegato: ${hasAll?'SÌ, VERIFICARE ALLEGATO'+(allX?' ('+allX+')':''):'No'}`;
-  const ver=sec('Verifiche',[acts.map((a,i)=>`${i+1}. ${a}`).join('\n'),risu]);
+  const ver=acts.length?'Verifiche:\n'+acts.map((a,i)=>`${i+1}. ${a}`).join('\n')+(risu?'\nEsito delle verifiche: '+risu:''):risu?'Esito delle verifiche: '+risu:'';
   const evi=sec('Evidenze',[...rows.map(([l,v])=>`- ${l}: ${v}`),g('evidenze')&&'- '+one(g('evidenze')),hasAll&&"- Allegato: verificare l'allegato"+(allX?' ('+allX+')':'')]);
   const note=g('note')?'Note: '+g('note'):'';
   const B=[head];
   if(si===2){
     B.push(`Motivo: ${ph('problema').replace(/[.\s]+$/,'')}. Le verifiche di primo livello non hanno risolto il problema: si assegna la segnalazione al gruppo ${grp} per l'analisi e l'intervento di competenza.`,
-      ver||'Verifiche: (da compilare)',evi||'Evidenze: (da compilare)','Richiesta: '+ph('richiesta'),note);
+      ver||'Verifiche ed esito delle verifiche: (da compilare)',evi||'Evidenze: (da compilare)','Richiesta: '+ph('richiesta'),note);
   }else{
     B.push(sec('Caso',[g('problema')]),ver,evi,note,['Prossimo passo: ticket in chiusura, vedere la nota di chiusura.',"Prossimo passo: in attesa dell'utente"+(g('inatt')?' ('+one(g('inatt'))+').':'.'),'',`Prossimo passo: ticket chiuso (${(cp||'').toLowerCase()}).`][si]);
   }
@@ -230,8 +238,8 @@ function build(){
     `${cap(T.intro)} per proseguire${tr} abbiamo bisogno di un suo riscontro.\n\n${prob}${g('inatt')?'Informazioni richieste: '+ph('inatt')+'\n\n':''}In assenza di risposta potremmo dover chiudere il ticket.`,
     `${cap(T.intro)} serve un approfondimento specialistico${tr}: abbiamo quindi inoltrato la pratica al nostro supporto di secondo livello.\n\n${prob}${act}Cosa succede ora: il team specialistico analizzerà la segnalazione e la aggiorneremo sull'esito. Non sono necessarie altre azioni da parte sua, salvo nostra richiesta.`,
     cp===CP[0]?`Abbiamo provato a contattarla più volte${tr} senza riuscire a raggiungerla, per questo chiudiamo il ticket.\n\n${g('cp1')?'Tentativi di contatto: '+ph('cp1')+'\n\n':''}Può riaprirlo in qualsiasi momento rispondendo a questa comunicazione.`
-    :cp===CP[1]?`La sua richiesta${tr} è già in gestione in un altro ticket.\n\n${g('cp2')?'Ticket di riferimento: '+ph('cp2')+'\n':''}${g('cp3')?'Motivo: '+ph('cp3')+'\n':''}\nChiudiamo questo per evitare duplicati: gli aggiornamenti arriveranno dal ticket principale.`
-    :`${prob}La sua richiesta${tr} risulta fuori dal perimetro del nostro servizio. Per eventuali dubbi, la invitiamo a contattare il supporto IT interno.`][si];
+    :cp===CP[1]?`La sua richiesta${tr} è già in gestione in un altro ticket.\n\n${g('cp2')?'Ticket di riferimento: '+ph('cp2')+'\n':''}${g('cp3')?'Motivo della duplicazione: '+ph('cp3')+'\n':''}\nChiudiamo questo per evitare duplicati: gli aggiornamenti arriveranno dal ticket principale.`
+    :`La sua richiesta${tr} risulta fuori dal perimetro del nostro servizio. Per eventuali dubbi, la invitiamo a contattare il supporto IT interno.`][si];
   const usr=`Gentile ${u||'utente'},\n\n${body}\n\nCordiali saluti,\nHelpdesk ${cl||'IT'}`;
 
   // 3) NOTA DI CHIUSURA: Problema / Causa / Azioni / Esito / Conferma
@@ -262,11 +270,10 @@ function build(){
 let texts={int:'',usr:'',cls:''};
 function gen(){
   if(cur)texts=build();else{const m='(Compila i dati e scegli la tipologia: la nota comparirà qui.)';texts={int:m,usr:m,cls:m,chk:{title:'Prima di iniziare',items:[['Scegli la tipologia',false]]}}}
-  $('#out').value=texts[tab];renderChk(texts.chk);hint();fit()}
+  showTabs();$('#out').value=texts[tab];renderChk(texts.chk);hint();fit()}
 
 document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{
-  texts[tab]=$('#out').value;tab=b.dataset.tab;
-  document.querySelectorAll('.tabbtn').forEach(x=>x.setAttribute('aria-selected',x===b));
+  texts[tab]=$('#out').value;tab=b.dataset.tab;showTabs();
   $('#out').value=texts[tab];hint();fit()});
 
 async function copy(txt){
@@ -281,7 +288,7 @@ $('#clearBtn').onclick=()=>{resetAll();toast('Campi puliti')};
 $('#saveBtn').onclick=()=>{
   if(!cur){toast('Scegli prima la tipologia');return}
   texts[tab]=$('#out').value;
-  hist.unshift({id:Date.now(),type:cur,ticket:data.ticket||'',utente:data.utente||'',stato:data.stato,fav:false,int:texts.int,usr:texts.usr,cls:texts.cls,data:JSON.parse(JSON.stringify(data))});
+  hist.unshift({id:Date.now(),type:cur,ticket:data.ticket||'',utente:data.utente||'',stato:data.stato,fav:false,int:texts.int,usr:texts.usr,cls:texts.cls,vis:showTabs(),data:JSON.parse(JSON.stringify(data))});
   hist=hist.slice(0,200);LS('hist',hist);renderHist();toast('Salvata nella cronologia');
 };
 
@@ -298,10 +305,11 @@ function renderHist(){
     ti.appendChild(el('div','text-xs text-slate-500 dark:text-slate-400',`${h.utente||'—'} · ${h.stato} · ${new Date(h.id).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}`));
     const fav=el('button','text-xl leading-none '+(h.fav?'text-amber-500':'text-slate-400'),h.fav?'★':'☆');fav.title='Preferito';fav.onclick=()=>{h.fav=!h.fav;LS('hist',hist);renderHist()};
     top.append(ti,fav);
-    const pre=el('pre','text-xs font-mono whitespace-pre-wrap max-h-24 overflow-hidden text-slate-600 dark:text-slate-300',h.int);
+    const vs=h.vis||['int','usr'].concat(h.cls&&h.cls[0]!=='('?['cls']:[]);
+    const pre=el('pre','text-xs font-mono whitespace-pre-wrap max-h-24 overflow-hidden text-slate-600 dark:text-slate-300',h[vs[0]]);
     const bar=el('div','flex flex-wrap gap-2 text-xs');
     const mk=(t,fn,cls='')=>{const b=el('button','rounded border border-slate-300 dark:border-slate-600 px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-700 '+cls,t);b.onclick=fn;bar.appendChild(b)};
-    mk('Work note',()=>copy(h.int));mk('Commento',()=>copy(h.usr));if(h.cls)mk('Chiusura',()=>copy(h.cls));
+    if(vs.includes('int'))mk('Work note',()=>copy(h.int));if(vs.includes('usr'))mk('Commento',()=>copy(h.usr));if(vs.includes('cls'))mk('Chiusura',()=>copy(h.cls));
     mk('Riapri',()=>{cur=h.type;data=JSON.parse(JSON.stringify(h.data));renderTypes();renderForm();gen();scrollTo({top:0,behavior:'smooth'})});
     mk('Elimina',()=>{if(confirm('Eliminare questa nota?')){hist=hist.filter(x=>x!==h);LS('hist',hist);renderHist()}},'text-red-600 dark:text-red-400');
     c.append(top,pre,bar);box.appendChild(c);
