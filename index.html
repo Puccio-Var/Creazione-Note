@@ -38,12 +38,14 @@
     </section>
 
     <section class="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 md:p-5 flex flex-col">
-      <div class="flex gap-4 border-b border-slate-200 dark:border-slate-700 mb-3" role="tablist">
-        <button class="tabbtn border-b-2 border-transparent pb-2 text-sm" role="tab" data-tab="int" aria-selected="true">Nota interna ticket</button>
-        <button class="tabbtn border-b-2 border-transparent pb-2 text-sm" role="tab" data-tab="usr" aria-selected="false">Comunicazione per utente</button>
+      <div class="flex gap-4 overflow-x-auto whitespace-nowrap border-b border-slate-200 dark:border-slate-700 mb-3" role="tablist">
+        <button class="tabbtn border-b-2 border-transparent pb-2 text-sm" role="tab" data-tab="int" aria-selected="true">Work Note interna</button>
+        <button class="tabbtn border-b-2 border-transparent pb-2 text-sm" role="tab" data-tab="usr" aria-selected="false">Commento per l'utente</button>
+        <button class="tabbtn border-b-2 border-transparent pb-2 text-sm" role="tab" data-tab="cls" aria-selected="false">Nota di chiusura</button>
       </div>
       <textarea id="out" class="inp flex-1 min-h-[22rem] font-mono leading-relaxed" spellcheck="false"></textarea>
-      <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Il testo è modificabile prima della copia; cambiando un campo del form viene rigenerato.</p>
+      <p id="hint" class="text-xs text-slate-500 dark:text-slate-400 mt-1"></p>
+      <div id="chk"></div>
       <div class="flex flex-wrap gap-2 mt-3">
         <button id="copyBtn" class="flex-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-semibold px-4 py-2.5">Copia nota</button>
         <button id="saveBtn" class="rounded-lg border border-teal-600 text-teal-700 dark:text-teal-400 font-semibold px-4 py-2.5 hover:bg-teal-50 dark:hover:bg-slate-700">Salva nella cronologia</button>
@@ -66,7 +68,7 @@
 <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm px-4 py-2 rounded-lg shadow-lg hidden"></div>
 
 <script>
-const STATI=['Risolto al 1° livello','In attesa utente','Scalato al 2° livello'];
+const STATI=['Risolto al 1° livello','In attesa utente','Scalato al 2° livello','Chiuso: caso particolare'];
 const SN=['Sì','No'];
 const TYPES={
  pwd:{n:'Reset password / Sblocco AD',tag:'AD',intro:"in merito alla sua richiesta relativa all'account di rete,",f:[
@@ -91,8 +93,27 @@ const TYPES={
  gen:{n:'Generico / Altro',tag:'GENERICO',intro:'in merito alla sua richiesta,',f:[
   {id:'ogg',l:'Oggetto',t:'txt'},{id:'desc',l:'Descrizione del problema',t:'area'},{id:'az',l:'Azioni eseguite',t:'area'}]}
 };
-const COMMON_TOP=[{id:'ticket',l:'N° ticket',t:'txt',p:'INC0001234'},{id:'utente',l:'Utente',t:'txt',p:'Nome Cognome / username'}];
-const COMMON_BOT=[{id:'allegato',l:'Allegato al ticket',t:'sel',o:['No','Sì'],x:{when:'Sì',p:'Cosa contiene? (screenshot, log, foto...)'}},{id:'note',l:'Note aggiuntive',t:'area'},{id:'stato',l:'Stato finale',t:'sel',o:STATI}];
+const COMMON_TOP=[{id:'ticket',l:'N° ticket',t:'txt',p:'INC0001234'},{id:'utente',l:'Utente',t:'txt',p:'Nome Cognome / username'},{id:'problema',l:'Problema segnalato',t:'area',p:'Cosa non funziona, dal punto di vista dell\'utente'}];
+const CH=['Seleziona…','Telefono','Email','Portale','Chat','Di persona'];
+const CP=['Cliente non risponde','Ticket duplicato','Fuori perimetro'];
+const S=i=>d=>d.stato===STATI[i];
+const COMMON_BOT=[
+ {id:'risultati',l:'Risultato delle verifiche',t:'area'},
+ {id:'evidenze',l:'Evidenze (errori, log, riferimenti)',t:'area'},
+ {id:'allegato',l:'Allegato al ticket',t:'sel',o:['No','Sì'],x:{when:'Sì',p:'Cosa contiene? (screenshot, log, foto...)'}},
+ {id:'stato',l:'Stato finale',t:'pill',o:STATI},
+ {id:'grp',l:'Gruppo destinatario (Assignment Group)',t:'txt',s:S(2)},
+ {id:'motivo',l:'Perché lo assegniamo a questo gruppo',t:'area',s:S(2)},
+ {id:'richiesta',l:'Richiesta al team destinatario',t:'area',p:'es. verifiche ulteriori, identificazione delle cause',s:S(2)},
+ {id:'inatt',l:"Cosa serve dall'utente",t:'area',s:S(1)},
+ {id:'causa',l:'Causa del problema',t:'area',s:S(0)},
+ {id:'esito',l:'Esito delle azioni',t:'area',s:S(0)},
+ {id:'conf',l:"Conferma dell'utente tramite",t:'sel',o:CH,s:S(0)},
+ {id:'cp',l:'Caso particolare',t:'sel',o:CP,s:S(3)},
+ {id:'cp1',l:'Tentativi di contatto (quando e come)',t:'area',s:d=>S(3)(d)&&d.cp===CP[0]},
+ {id:'cp2',l:'Ticket principale e motivo della duplicazione',t:'area',s:d=>S(3)(d)&&d.cp===CP[1]},
+ {id:'code',l:'Resolution/Close code',t:'txt',s:d=>S(0)(d)||S(3)(d)},
+ {id:'note',l:'Note aggiuntive',t:'area'}];
 
 const $=s=>document.querySelector(s);
 const LS=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}};
@@ -111,21 +132,38 @@ function renderTypes(){
   });
 }
 
+const PC=['bg-emerald-600 border-emerald-600','bg-amber-500 border-amber-500','bg-indigo-600 border-indigo-600','bg-slate-600 border-slate-600'];
+const HINTS={int:'Work Notes: dettagli tecnici visibili solo al team. Scrivi per un estraneo, senza sigle ambigue.',usr:'Comments: solo ciò che deve vedere il cliente. Niente password o dati riservati.',cls:'Close notes: si inseriscono insieme al Resolution/Close code. La nota deve reggersi da sola.'};
+function hint(){$('#hint').textContent=HINTS[tab]+' Il testo è modificabile prima della copia.'}
+function renderChk(c){
+  const b=$('#chk');b.innerHTML='';b.className='mt-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 p-3';
+  b.appendChild(el('div','text-xs font-semibold uppercase tracking-wide mb-1',c.title));
+  c.items.forEach(([l,ok,w])=>b.appendChild(el('div','text-sm '+(ok?'text-emerald-700 dark:text-emerald-400':w?'text-red-600 dark:text-red-400 font-semibold':'text-slate-500 dark:text-slate-400'),(ok?'✔ ':w?'⚠ ':'☐ ')+l)));
+}
 function renderForm(){
   const T=TYPES[cur];$('#formTitle').textContent=T.n;
   const f=$('#form');f.innerHTML='';
   const grid=el('div','grid sm:grid-cols-2 gap-3');
   [...COMMON_TOP,...T.f,...COMMON_BOT].forEach(fd=>{
-    const w=el('div',fd.t==='area'||fd.t==='chk'?'sm:col-span-2':'');
+    if(fd.s&&!fd.s(data))return;
+    const w=el('div',['area','chk','pill'].includes(fd.t)?'sm:col-span-2':'');
     w.appendChild(el('label','lbl',fd.l));
     let i;
-    if(fd.t==='sel'){i=el('select','inp');fd.o.forEach(o=>i.appendChild(new Option(o,o)));if(!data[fd.id])data[fd.id]=fd.o[0];i.value=data[fd.id];i.onchange=()=>{data[fd.id]=i.value;if(fd.x){renderForm()}gen()}}
-    else if(fd.t==='chk'){i=el('div','flex flex-wrap gap-2');const sel=data[fd.id]=data[fd.id]||[];
+    if(fd.t==='pill'){
+      if(!data[fd.id])data[fd.id]=fd.o[0];
+      i=el('div','grid grid-cols-2 gap-2');
+      fd.o.forEach((o,k)=>{const b=el('button','rounded-lg border px-3 py-2 text-sm text-left font-medium '+(data[fd.id]===o?PC[k]+' text-white':'border-slate-300 dark:border-slate-600 hover:border-teal-500'),o);b.type='button';b.onclick=()=>{data[fd.id]=o;renderForm();gen()};i.appendChild(b)});
+    }else if(fd.t==='sel'){
+      i=el('select','inp');fd.o.forEach(o=>i.appendChild(new Option(o,o)));if(!data[fd.id])data[fd.id]=fd.o[0];i.value=data[fd.id];i.onchange=()=>{data[fd.id]=i.value;renderForm();gen()};
+    }else if(fd.t==='chk'){
+      i=el('div','flex flex-wrap gap-2');const sel=data[fd.id]=data[fd.id]||[];
       fd.o.forEach(o=>{const l=el('label','flex items-center gap-1.5 text-sm rounded-md border border-slate-300 dark:border-slate-600 px-2 py-1 cursor-pointer');
         const c=el('input');c.type='checkbox';c.checked=sel.includes(o);c.onchange=()=>{const a=data[fd.id];c.checked?a.push(o):a.splice(a.indexOf(o),1);gen()};
         l.append(c,o);i.appendChild(l)});
-      const x=el('input','inp mt-1 w-full basis-full');x.placeholder='Altre azioni (separate da virgola)';x.value=data[fd.id+'_x']||'';x.oninput=()=>{data[fd.id+'_x']=x.value;gen()};i.appendChild(x)}
-    else{i=el(fd.t==='area'?'textarea':'input','inp');if(fd.t==='area')i.rows=3;if(fd.p)i.placeholder=fd.p;i.value=data[fd.id]||'';i.oninput=()=>{data[fd.id]=i.value;gen()}}
+      const x=el('input','inp mt-1 w-full basis-full');x.placeholder='Altre azioni (separate da virgola)';x.value=data[fd.id+'_x']||'';x.oninput=()=>{data[fd.id+'_x']=x.value;gen()};i.appendChild(x);
+    }else{
+      i=el(fd.t==='area'?'textarea':'input','inp');if(fd.t==='area')i.rows=3;if(fd.p)i.placeholder=fd.p;i.value=data[fd.id]||'';i.oninput=()=>{data[fd.id]=i.value;gen()};
+    }
     w.appendChild(i);
     if(fd.x&&data[fd.id]===fd.x.when){const x=el('input','inp mt-2');x.placeholder=fd.x.p;x.value=data[fd.id+'_x']||'';x.oninput=()=>{data[fd.id+'_x']=x.value;gen()};w.appendChild(x)}
     grid.appendChild(w);
@@ -136,45 +174,80 @@ function renderForm(){
 function actions(fd){const a=[...(data[fd.id]||[])];(data[fd.id+'_x']||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(s=>a.push(s));return a}
 
 function build(){
-  const T=TYPES[cur],d=data;
-  const tk=(d.ticket||'').trim(),u=(d.utente||'').trim(),st=d.stato||STATI[0];
-  const val=fd=>{let v=(d[fd.id]||'').toString().trim();const x=(d[fd.id+'_x']||'').trim();
-    if(fd.x&&v===fd.x.when&&x)v=fd.x.rep?x:v+' – '+x;return v};
+  const T=TYPES[cur],d=data,g=k=>(d[k]||'').toString().trim();
+  const tk=g('ticket'),u=g('utente'),st=d.stato||STATI[0],si=STATI.indexOf(st);
+  const cap=s=>s.charAt(0).toUpperCase()+s.slice(1),ph=k=>g(k)||'(da compilare)';
+  const val=fd=>{let v=g(fd.id);const x=g(fd.id+'_x');if(fd.x&&v===fd.x.when&&x)v=fd.x.rep?x:v+' – '+x;return v};
   const rows=[],acts=[];
   T.f.forEach(fd=>{
     if(fd.t==='chk'){acts.push(...actions(fd))}
-    else if(fd.id==='az'){(d.az||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean).forEach(s=>acts.push(s))}
+    else if(fd.id==='az'){g('az').split(/\n|,/).map(s=>s.trim()).filter(Boolean).forEach(s=>acts.push(s))}
     else{const v=val(fd);if(v)rows.push([fd.l,v.replace(/\n/g,' ')])}
   });
-  const hasAll=d.allegato==='Sì',allX=(d.allegato_x||'').trim();
-  const next=["Nessuno, ticket chiudibile.","In attesa di riscontro dall'utente.","Presa in carico dal 2° livello."][STATI.indexOf(st)];
-  const blocks=[];
-  blocks.push(`TICKET ${tk||'(n. da inserire)'} · ${T.n}\nStato: ${st}\nUtente: ${u||'non indicato'}\nAllegato: ${hasAll?'SÌ, VERIFICARE ALLEGATO'+(allX?' ('+allX+')':''):'No'}`);
-  if(rows.length)blocks.push('DETTAGLI\n'+rows.map(([l,v])=>`- ${l}: ${v}`).join('\n'));
-  if(acts.length)blocks.push('AZIONI SVOLTE\n'+acts.map((a,i)=>`${i+1}. ${a}`).join('\n'));
-  if((d.note||'').trim())blocks.push('NOTE\n'+d.note.trim());
-  blocks.push('PROSSIMO PASSO\n'+next);
-  const n=blocks.join('\n\n');
-  const tail=[
-    "Il problema è stato risolto. La invitiamo a verificare il corretto funzionamento: se dovesse ripresentarsi, risponda a questa email e riapriremo subito la richiesta.",
-    "Per proseguire abbiamo bisogno di un suo riscontro. In assenza di risposta, il ticket potrebbe essere chiuso automaticamente dopo alcuni giorni.",
-    "Poiché la richiesta richiede un approfondimento specialistico, l'abbiamo inoltrata al nostro supporto di secondo livello. Sarà aggiornato appena possibile sugli sviluppi."][STATI.indexOf(st)];
-  let m=`Gentile ${u||'utente'},\n\n${T.intro} la informiamo sull'esito della verifica${tk?' (ticket '+tk+')':''}.\n\n`;
-  if(cur==='pwd')m+=`Abbiamo eseguito: ${d.tipo.toLowerCase()}${d.idv==='Sì'?', previa verifica della sua identità':''}.\n\n`;
-  else if(cur==='pc')m+=`Intervento effettuato: ${d.tipo.toLowerCase()}.\n\n`;
-  if(acts.length)m+=`Attività svolte:\n${acts.map(a=>'  - '+a).join('\n')}\n\n`;
-  if((d.note||'').trim())m+=`${d.note.trim()}\n\n`;
-  m+=`${tail}\n\nCordiali saluti,\nHelpdesk IT`;
-  return {int:n,usr:m};
+  const hasAll=d.allegato==='Sì',allX=g('allegato_x');
+  const alleg=hasAll?'SÌ, VERIFICARE ALLEGATO'+(allX?' ('+allX+')':''):'No';
+  const conf=d.conf&&d.conf!==CH[0]?d.conf:'';
+  const cp=si===3?d.cp:'';
+  const tr=tk?` (ticket ${tk})`:'';
+  const al=acts.length?`\n\nAttività svolte:\n${acts.map(a=>'  - '+a).join('\n')}`:'';
+
+  // 1) WORK NOTE interna
+  const B=[`WORK NOTE${si===2?' · ROUTING → '+(g('grp')||'(gruppo da indicare)'):''}\nTicket ${tk||'(n. da inserire)'} · ${T.n}\nUtente: ${u||'non indicato'}\nStato: ${st}${cp?' ('+cp+')':''}\nAllegato: ${alleg}`];
+  if(si===2)B.push('MOTIVO\n'+ph('problema')+(g('motivo')?'\nAssegnato a questo gruppo perché: '+g('motivo'):''));
+  else if(g('problema'))B.push('CASO\n'+g('problema'));
+  if(rows.length)B.push('DETTAGLI\n'+rows.map(([l,v])=>`- ${l}: ${v}`).join('\n'));
+  if(acts.length||g('risultati'))B.push('VERIFICHE\n'+[acts.map((a,i)=>`${i+1}. ${a}`).join('\n'),g('risultati')&&'Risultato: '+g('risultati')].filter(Boolean).join('\n'));
+  if(g('evidenze'))B.push('EVIDENZE\n'+g('evidenze'));
+  if(g('note'))B.push('NOTE\n'+g('note'));
+  B.push([
+    'PROSSIMO PASSO\nTicket in chiusura, vedere nota di chiusura.',
+    'PROSSIMO PASSO\nIn attesa dell\'utente: '+(g('inatt')||'riscontro.'),
+    'RICHIESTA AL TEAM\n'+ph('richiesta'),
+    'PROSSIMO PASSO\nTicket chiuso: '+(cp||'').toLowerCase()+'.'][si]);
+
+  // 2) COMMENTO per l'utente
+  const ex=cur==='pwd'?`Abbiamo eseguito: ${(d.tipo||'').toLowerCase()}${d.idv==='Sì'?', previa verifica della sua identità':''}.\n\n`:cur==='pc'?`Intervento effettuato: ${(d.tipo||'').toLowerCase()}.\n\n`:'';
+  const body=[
+    `${cap(T.intro)} le confermiamo che la segnalazione${tr} è stata risolta.\n\n${ex}${g('esito')?g('esito')+'\n\n':''}${al.trim()?al.trim()+'\n\n':''}Se dovesse ripresentarsi, risponda a questa comunicazione e riapriremo subito la richiesta.`,
+    `${cap(T.intro)} per proseguire${tr} abbiamo bisogno di un suo riscontro.\n\n${g('inatt')?'Ci servono le seguenti informazioni: '+g('inatt')+'\n\n':''}In assenza di risposta, il ticket potrebbe essere chiuso dopo alcuni giorni.`,
+    `${cap(T.intro)} la richiesta${tr} richiede un approfondimento specialistico, per questo l'abbiamo inoltrata al nostro supporto di secondo livello.${al}\n\nLa aggiorneremo appena possibile sugli sviluppi.`,
+    cp===CP[0]?`Abbiamo provato a contattarla più volte${tr} senza riuscire a raggiungerla, per questo chiudiamo il ticket. Può riaprirlo in qualsiasi momento rispondendo a questa comunicazione.`
+    :cp===CP[1]?`La sua richiesta${tr} è già in gestione in un altro ticket${g('cp2')?' ('+g('cp2')+')':''}. Chiudiamo questo per evitare duplicati: gli aggiornamenti arriveranno dal ticket principale.`
+    :`La sua richiesta${tr} risulta fuori dal perimetro del nostro servizio. Per eventuali dubbi, la invitiamo a contattare il supporto IT interno.`][si];
+  const usr=`Gentile ${u||'utente'},\n\n${body}\n\nCordiali saluti,\nHelpdesk IT`;
+
+  // 3) NOTA DI CHIUSURA
+  let cls;
+  const code=`Resolution/Close code: ${ph('code')}`;
+  if(si===0)cls=[`NOTA DI CHIUSURA · Ticket ${tk||'(n. da inserire)'}`,
+    `Problema: ${ph('problema')}`,`Causa: ${ph('causa')}`,`Azioni: ${acts.length?acts.join('; '):'(da compilare)'}`,`Esito: ${ph('esito')}`,
+    `Conferma: ${conf?`${u||"L'utente"} ha confermato la risoluzione tramite ${conf.toLowerCase()}.`:'(indicare chi ha confermato e tramite quale canale)'}`,code].join('\n');
+  else if(si===3)cls=[`NOTA DI CHIUSURA · Ticket ${tk||'(n. da inserire)'} · ${cp}`,`Problema: ${ph('problema')}`,
+    cp===CP[0]?`Tentativi di contatto: ${ph('cp1')}\nEsito: Ticket chiuso per mancato riscontro dell'utente, avvisato che la segnalazione può essere riaperta.`
+    :cp===CP[1]?`Esito: Ticket duplicato. Ticket principale e motivo: ${ph('cp2')}`
+    :`Esito: Richiesta fuori perimetro. Utente informato e invitato a contattare l'IT interno.`,code].join('\n');
+  else cls='(Il ticket non è in chiusura: la nota di chiusura si genera con lo stato «Risolto al 1° livello» o «Chiuso: caso particolare».)';
+
+  // Checklist (dalle slide: prima di girare / prima di chiudere)
+  const bad=/(password|pwd|psw|pin|otp|token)\s*[:=]\s*\S+/i.test(Object.values(d).filter(v=>typeof v==='string').join(' '));
+  const generic=['problema','motivo','richiesta','esito','causa','note'].some(k=>/^(ok|fatto|risolto|funziona|inoltro|per competenza|x cdc|\.)\.?$/i.test(g(k)));
+  const ver=!!(acts.length||g('risultati'));
+  const items=[
+    [[ 'Il cliente ha confermato il funzionamento',!!conf],['Risoluzione descritta (problema, causa, azioni, esito)',!!(g('problema')&&g('causa')&&acts.length&&g('esito'))],['Resolution/Close code inserito',!!g('code')]],
+    [['Richiesta all\'utente chiara',!!g('inatt')],['Verifiche già eseguite indicate',ver]],
+    [['Motivo scritto (caso + gruppo + ragione)',!!(g('problema')&&g('grp')&&g('motivo'))],['Verifiche e risultati indicati',ver],['Evidenze allegate o indicate',!!(g('evidenze')||hasAll)],['Richiesta al team destinatario specificata',!!g('richiesta')]],
+    [['Caso particolare documentato',cp===CP[0]?!!g('cp1'):cp===CP[1]?!!g('cp2'):true],['Resolution/Close code inserito',!!g('code')]]][si];
+  items.push(['Nessun dato sensibile rilevato (controllo automatico)',!bad,true],['Nessuna nota generica («Ok», «Fatto», «Inoltro»…)',!generic,true]);
+  return {int:B.join('\n\n'),usr,cls,chk:{title:['Prima di chiudere','Prima di inviare','Prima di girare il ticket','Prima di chiudere'][si],items}};
 }
 
-let texts={int:'',usr:''};
-function gen(){texts=build();$('#out').value=texts[tab]}
+let texts={int:'',usr:'',cls:''};
+function gen(){texts=build();$('#out').value=texts[tab];renderChk(texts.chk);hint()}
 
 document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{
   texts[tab]=$('#out').value;tab=b.dataset.tab;
   document.querySelectorAll('.tabbtn').forEach(x=>x.setAttribute('aria-selected',x===b));
-  $('#out').value=texts[tab]});
+  $('#out').value=texts[tab];hint()});
 
 async function copy(txt){
   try{await navigator.clipboard.writeText(txt)}catch(e){const t=el('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove()}
@@ -185,7 +258,7 @@ $('#clearBtn').onclick=()=>{data={};renderForm();gen();toast('Campi puliti')};
 
 $('#saveBtn').onclick=()=>{
   texts[tab]=$('#out').value;
-  hist.unshift({id:Date.now(),type:cur,ticket:data.ticket||'',utente:data.utente||'',stato:data.stato,fav:false,int:texts.int,usr:texts.usr,data:JSON.parse(JSON.stringify(data))});
+  hist.unshift({id:Date.now(),type:cur,ticket:data.ticket||'',utente:data.utente||'',stato:data.stato,fav:false,int:texts.int,usr:texts.usr,cls:texts.cls,data:JSON.parse(JSON.stringify(data))});
   hist=hist.slice(0,200);LS('hist',hist);renderHist();toast('Salvata nella cronologia');
 };
 
@@ -205,7 +278,7 @@ function renderHist(){
     const pre=el('pre','text-xs font-mono whitespace-pre-wrap max-h-24 overflow-hidden text-slate-600 dark:text-slate-300',h.int);
     const bar=el('div','flex flex-wrap gap-2 text-xs');
     const mk=(t,fn,cls='')=>{const b=el('button','rounded border border-slate-300 dark:border-slate-600 px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-700 '+cls,t);b.onclick=fn;bar.appendChild(b)};
-    mk('Copia nota',()=>copy(h.int));mk('Copia email',()=>copy(h.usr));
+    mk('Work note',()=>copy(h.int));mk('Commento',()=>copy(h.usr));if(h.cls)mk('Chiusura',()=>copy(h.cls));
     mk('Riapri',()=>{cur=h.type;LS('type',cur);data=JSON.parse(JSON.stringify(h.data));renderTypes();renderForm();gen();scrollTo({top:0,behavior:'smooth'})});
     mk('Elimina',()=>{if(confirm('Eliminare questa nota?')){hist=hist.filter(x=>x!==h);LS('hist',hist);renderHist()}},'text-red-600 dark:text-red-400');
     c.append(top,pre,bar);box.appendChild(c);
