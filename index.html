@@ -13,6 +13,7 @@
   .lbl{display:block;font-size:.8rem;font-weight:600;margin-bottom:.25rem;color:#334155}
   .dark .lbl{color:#cbd5e1}
   .tabbtn[aria-selected=true]{border-color:#0d9488;color:#0d9488;font-weight:600}
+.need{border-color:#f59e0b!important;box-shadow:0 0 0 2px rgba(245,158,11,.35)}
 </style>
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen">
@@ -21,11 +22,14 @@
   <header class="flex items-center justify-between mb-5">
     <div>
       <h1 class="text-xl md:text-2xl font-bold">Generatore di note Helpdesk</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400">Note interne ITSM e comunicazioni per l'utente, pronte da copiare.</p>
     </div>
     <button id="themeBtn" class="rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm hover:bg-slate-200 dark:hover:bg-slate-800" aria-label="Cambia tema">Tema</button>
   </header>
 
+  <div id="drafts" class="flex flex-wrap items-center gap-2 mb-4"></div>
+
+  <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-6 items-start">
+  <div class="min-w-0">
   <section class="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 md:p-5 mb-5">
     <h2 class="font-semibold mb-3">1 · Chi ti scrive e per cosa</h2>
     <div id="topForm"></div>
@@ -36,6 +40,7 @@
   <div class="space-y-5">
     <section class="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 md:p-5">
       <h2 id="formTitle" class="font-semibold mb-4"></h2>
+      <div id="tplBanner"></div>
       <div id="form" class="space-y-3"></div>
       <div class="mt-4"><button id="clearBtn" class="text-sm rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700">Pulisci campi</button></div>
     </section>
@@ -56,8 +61,19 @@
         <button id="copyBtn" class="flex-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-semibold px-4 py-2.5">Copia nota</button>
         <button id="saveBtn" class="rounded-lg border border-teal-600 text-teal-700 dark:text-teal-400 font-semibold px-4 py-2.5 hover:bg-teal-50 dark:hover:bg-slate-700">Salva nella cronologia</button>
         <button id="newBtn" class="rounded-lg border border-slate-300 dark:border-slate-600 font-semibold px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-700">Nuovo ticket</button>
+        <button id="tplBtn" class="rounded-lg border border-slate-300 dark:border-slate-600 font-semibold px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-700">Salva come modello</button>
       </div>
+      <p id="copied" class="text-sm mt-2 min-h-[1.25rem]"></p>
     </section>
+  </div>
+
+  </div>
+  <aside class="mt-5 lg:mt-0 lg:sticky lg:top-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+    <h2 class="font-semibold">Modelli rapidi</h2>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mb-2">Precompilano il form: tu aggiungi ticket, utente e i dati con asterisco.</p>
+    <input id="tq" class="inp mb-1" placeholder="Cerca modello...">
+    <div id="tpls"></div>
+  </aside>
   </div>
 
   <section class="mt-5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 md:p-5">
@@ -79,46 +95,46 @@ const STATI=['Risolto al 1° livello','In attesa utente','Scalato al 2° livello
 const SN=['Sì','No'];
 const TYPES={
  pwd:{n:'Reset password / Sblocco AD',tag:'AD',intro:"in merito alla sua richiesta relativa all'account di rete,",f:[
-  {id:'tipo',l:'Intervento',t:'sel',o:['Reset password','Sblocco account','Reset e sblocco']},
-  {id:'idv',l:'Identità verificata',t:'sel',o:SN},
-  {id:'metodo',l:'Metodo di verifica identità',t:'sel',o:['Domanda di sicurezza','Chiamata al numero registrato','Conferma del responsabile','Verifica di persona (badge/documento)','Codice via SMS/email aziendale','Altro (specificare)'],x:{when:'Altro (specificare)',p:'Descrivi il metodo usato',rep:1}}]},
+  {id:'tipo',r:1,l:'Intervento',t:'sel',o:['Reset password','Sblocco account','Reset e sblocco']},
+  {id:'idv',r:1,l:'Identità verificata',t:'sel',o:SN},
+  {id:'metodo',r:d=>d.idv==='Sì',l:'Metodo di verifica identità',t:'sel',o:['Domanda di sicurezza','Chiamata al numero registrato','Conferma del responsabile','Verifica di persona (badge/documento)','Codice via SMS/email aziendale','Altro (specificare)'],x:{when:'Altro (specificare)',p:'Descrivi il metodo usato',rep:1}}]},
  prn:{n:'Stampante / Periferica',tag:'STAMPANTE',intro:'in merito al problema con la stampante/periferica segnalato,',f:[
-  {id:'host',l:'Hostname / IP',t:'txt'},{id:'mod',l:'Modello',t:'txt'},{id:'sede',l:'Reparto / Sede',t:'txt'},
+  {id:'host',r:1,l:'Hostname / IP',t:'txt'},{id:'mod',r:1,l:'Modello',t:'txt'},{id:'sede',l:'Reparto / Sede',t:'txt'},
   {id:'err',l:'Errore riscontrato',t:'area'},
   {id:'az',l:'Verifiche rapide (spunta quelle eseguite)',t:'chk',o:['Ping','Riavvio spooler','Reinstallazione driver','Riavvio stampante','Pulizia coda di stampa','Verifica cavo/rete','Pagina di test']}]},
  net:{n:'Rete / VPN',tag:'RETE',intro:'in merito al problema di connettività segnalato,',f:[
-  {id:'ip',l:'Indirizzo IP utente',t:'txt'},{id:'conn',l:'Tipo connessione',t:'sel',o:['Wi-Fi','Cavo','VPN']},
-  {id:'host',l:'Hostname PC',t:'txt'},{id:'ping',l:'Esito Ping / Traceroute',t:'area'},
+  {id:'ip',r:1,l:'Indirizzo IP utente',t:'txt'},{id:'conn',l:'Tipo connessione',t:'sel',o:['Wi-Fi','Cavo','VPN']},
+  {id:'host',r:1,l:'Hostname PC',t:'txt'},{id:'ping',l:'Esito Ping / Traceroute',t:'area'},
   {id:'az',l:'Verifiche rapide (spunta quelle eseguite)',t:'chk',o:['Ipconfig /release /renew','Flush DNS','Riavvio adattatore','Reinstallazione client VPN','Verifica credenziali','Cambio porta/AP']}]},
  pc:{n:'Postazione di lavoro',tag:'POSTAZIONE',intro:'in merito alla sua postazione di lavoro,',f:[
-  {id:'tipo',l:'Intervento',t:'sel',o:['Setup nuova postazione','Sostituzione PC/Laptop']},
-  {id:'host',l:'Hostname',t:'txt'},{id:'mod',l:'Modello / Asset tag',t:'txt'},
+  {id:'tipo',r:1,l:'Intervento',t:'sel',o:['Setup nuova postazione','Sostituzione PC/Laptop']},
+  {id:'host',r:1,l:'Hostname',t:'txt'},{id:'mod',l:'Modello / Asset tag',t:'txt'},
   {id:'az',l:'Verifiche rapide (spunta quelle eseguite)',t:'chk',o:['Join al dominio','Installazione software base','Migrazione dati','Configurazione stampanti','Ritiro vecchia postazione','Aggiornamento inventario']}]},
  sw:{n:'Software',tag:'SOFTWARE',intro:'in merito al problema con il software segnalato,',f:[
-  {id:'sw',l:'Software e versione',t:'txt'},{id:'err',l:'Errore / Sintomo',t:'area'},{id:'host',l:'Hostname PC',t:'txt'},
+  {id:'sw',r:1,l:'Software e versione',t:'txt'},{id:'err',l:'Errore / Sintomo',t:'area'},{id:'host',r:1,l:'Hostname PC',t:'txt'},
   {id:'az',l:'Verifiche rapide (spunta quelle eseguite)',t:'chk',o:['Installazione','Reinstallazione','Riparazione','Aggiornamento','Pulizia cache/profilo','Verifica licenza','Riavvio PC']}]},
  gen:{n:'Generico / Altro',tag:'GENERICO',intro:'in merito alla sua richiesta,',f:[]}
 };
-const COMMON_TOP=[{id:'cliente',l:'Cliente',t:'txt',p:'Nome del cliente (firma delle note)'},{id:'ticket',l:'N° ticket',t:'txt',p:'INC0001234'},{id:'utente',l:'Utente',t:'txt',p:'Nome Cognome / username'},{id:'problema',l:'Problema segnalato',t:'area',p:'Cosa non funziona, dal punto di vista dell\'utente'}];
+const COMMON_TOP=[{id:'cliente',r:1,l:'Cliente',t:'txt',p:'Nome del cliente (firma delle note)'},{id:'ticket',r:1,l:'N° ticket',t:'txt',p:'INC0001234'},{id:'utente',r:1,l:'Utente',t:'txt',p:'Nome Cognome / username'},{id:'problema',r:1,l:'Problema segnalato',t:'area',p:'Cosa non funziona, dal punto di vista dell\'utente'}];
 const CH=['Telefono','Email','Portale','Chat','Di persona'];
 const CP=['Cliente non risponde','Ticket duplicato','Fuori perimetro'];
 const S=i=>d=>d.stato===STATI[i];
 const COMMON_BOT=[
- {id:'risultati',l:'Esito delle verifiche (anche cosa NON è stato fatto e perché)',t:'area'},
- {id:'evidenze',l:'Evidenze (errori, log, riferimenti)',t:'area'},
+ {id:'risultati',r:d=>d.stato===STATI[2],l:'Esito delle verifiche (anche cosa NON è stato fatto e perché)',t:'area'},
+ {id:'evidenze',r:d=>d.stato===STATI[2],l:'Evidenze (errori, log, riferimenti)',t:'area'},
  {id:'allegato',l:'Allegato',t:'flag',l2:'Il ticket ha un allegato (screenshot, log, foto)',x:{when:true,p:'Cosa contiene? (facoltativo)'}},
  {id:'stato',l:'Stato finale',t:'pill',o:STATI},
- {id:'grp',l:'Gruppo destinatario (Assignment Group)',t:'txt',s:S(2)},
- {id:'richiesta',l:'Motivo e richiesta al team destinatario',t:'area',p:'Perché giri il ticket a questo gruppo e cosa ti aspetti che facciano (verifiche ulteriori, identificazione delle cause...)',s:S(2)},
- {id:'inatt',l:"Cosa serve dall'utente",t:'area',s:S(1)},
- {id:'causa',l:'Causa del problema',t:'area',s:S(0)},
- {id:'azris',l:'Azioni che hanno risolto il problema',t:'area',p:'es. profilo ricreato, posta e regole reimportate',s:S(0)},
- {id:'esito',l:'Esito delle azioni',t:'area',s:S(0)},
- {id:'conf',l:"Conferma dell'utente tramite",t:'sel',o:CH,s:S(0)},
+ {id:'grp',r:1,l:'Gruppo destinatario (Assignment Group)',t:'txt',s:S(2)},
+ {id:'richiesta',r:1,l:'Motivo e richiesta al team destinatario',t:'area',p:'Perché giri il ticket a questo gruppo e cosa ti aspetti che facciano (verifiche ulteriori, identificazione delle cause...)',s:S(2)},
+ {id:'inatt',r:1,l:"Cosa serve dall'utente",t:'area',s:S(1)},
+ {id:'causa',r:1,l:'Causa del problema',t:'area',s:S(0)},
+ {id:'azris',r:1,l:'Azioni che hanno risolto il problema',t:'area',p:'es. profilo ricreato, posta e regole reimportate',s:S(0)},
+ {id:'esito',r:1,l:'Esito delle azioni',t:'area',s:S(0)},
+ {id:'conf',r:1,l:"Conferma dell'utente tramite",t:'sel',o:CH,s:S(0)},
  {id:'cp',l:'Caso particolare',t:'sel',o:CP,nodef:1,s:S(3)},
- {id:'cp1',l:'Tentativi di contatto (quando e come)',t:'area',s:d=>S(3)(d)&&d.cp===CP[0]},
- {id:'cp2',l:'N° ticket principale di riferimento',t:'txt',s:d=>S(3)(d)&&d.cp===CP[1]},
- {id:'cp3',l:'Motivo della duplicazione',t:'area',s:d=>S(3)(d)&&d.cp===CP[1]},
+ {id:'cp1',r:1,l:'Tentativi di contatto (quando e come)',t:'area',s:d=>S(3)(d)&&d.cp===CP[0]},
+ {id:'cp2',r:1,l:'N° ticket principale di riferimento',t:'txt',s:d=>S(3)(d)&&d.cp===CP[1]},
+ {id:'cp3',r:1,l:'Motivo della duplicazione',t:'area',s:d=>S(3)(d)&&d.cp===CP[1]},
  {id:'note',l:'Note aggiuntive',t:'area'}];
 
 const $=s=>document.querySelector(s);
@@ -150,7 +166,7 @@ function renderChk(c){
 const PCK=['peer-checked:bg-emerald-600 peer-checked:border-emerald-600 peer-checked:text-white','peer-checked:bg-amber-500 peer-checked:border-amber-500 peer-checked:text-white','peer-checked:bg-indigo-600 peer-checked:border-indigo-600 peer-checked:text-white','peer-checked:bg-slate-600 peer-checked:border-slate-600 peer-checked:text-white'];
 const KEEP=['cliente','ticket','utente','problema'];
 const pick=()=>{const o={};KEEP.forEach(k=>{if(data[k])o[k]=data[k]});return o};
-function resetAll(){data={cliente:data.cliente};cur=null;renderTypes();renderForm();gen();const t=document.querySelector('[data-k="ticket"]');if(t)t.focus()}
+function resetAll(){data={cliente:data.cliente};cur=null;copiedTxt={};renderTypes();renderForm();gen();const t=document.querySelector('[data-k="ticket"]');if(t)t.focus()}
 function renderTypes(){
   const box=$('#types');box.innerHTML='';box.setAttribute('role','radiogroup');box.setAttribute('aria-label','Tipologia');
   Object.entries(TYPES).forEach(([k,v])=>{
@@ -162,7 +178,7 @@ function renderTypes(){
 }
 function field(fd){
   const w=el('div',fd.t==='chk'||fd.t==='pill'||fd.t==='area'?'sm:col-span-2 lg:col-span-3':'');
-  const lab=el('label','lbl',fd.l);w.appendChild(lab);
+  const need=R(fd);const lab=el('label','lbl',fd.l);if(need)lab.append(el('span','text-red-600',' *'));w.appendChild(lab);
   let i;
   if(fd.t==='pill'){
     if(!data[fd.id])data[fd.id]=fd.o[0];
@@ -180,9 +196,9 @@ function field(fd){
       const c=el('input');c.type='checkbox';c.checked=sel.includes(o);c.dataset.k=fd.id+'|'+o;c.onchange=()=>{const a=data[fd.id];c.checked?a.push(o):a.splice(a.indexOf(o),1);gen()};
       l.append(c,o);i.appendChild(l)});
   }else{
-    i=el(fd.t==='area'?'textarea':'input','inp');if(fd.t==='area')i.rows=2;if(fd.p)i.placeholder=fd.p;i.value=data[fd.id]||'';i.oninput=()=>{data[fd.id]=i.value;if(fd.id==='cliente')LS('cliente',i.value);gen()};
+    i=el(fd.t==='area'?'textarea':'input','inp');if(fd.t==='area')i.rows=2;if(fd.p)i.placeholder=fd.p;i.value=data[fd.id]||'';i.oninput=()=>{data[fd.id]=i.value;if(fd.id==='cliente')LS('cliente',i.value);if(need&&data.tpl)i.classList.toggle('need',!i.value.trim());gen()};
   }
-  if(['INPUT','SELECT','TEXTAREA'].includes(i.tagName)){i.id='f_'+fd.id;lab.htmlFor=i.id;i.dataset.k=fd.id}
+  if(['INPUT','SELECT','TEXTAREA'].includes(i.tagName)){i.id='f_'+fd.id;lab.htmlFor=i.id;i.dataset.k=fd.id;if(need&&data.tpl&&!String(data[fd.id]||'').trim())i.classList.add('need')}
   w.appendChild(i);
   if(fd.x&&data[fd.id]===fd.x.when){const x=el('input','inp mt-2');x.placeholder=fd.x.p;x.value=data[fd.id+'_x']||'';x.dataset.k=fd.id+'_x';x.oninput=()=>{data[fd.id+'_x']=x.value;gen()};w.appendChild(x)}
   return w;
@@ -191,6 +207,10 @@ function renderForm(){
   const ae=document.activeElement,fk=ae&&ae.dataset?ae.dataset.k:null;
   const mk=fds=>{const g=el('div','grid sm:grid-cols-2 lg:grid-cols-3 gap-3');fds.forEach(fd=>{if(!fd.s||fd.s(data))g.appendChild(field(fd))});return g};
   const top=$('#topForm');top.innerHTML='';top.appendChild(mk(COMMON_TOP));
+  const bn=$('#tplBanner');bn.innerHTML='';
+  if(cur&&data.tpl){const b=el('div','mb-3 flex items-start gap-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-900 dark:text-amber-200');
+    b.appendChild(el('span','flex-1','Modello «'+data.tpl+'» applicato. Controlla che verifiche, causa e azioni corrispondano a ciò che hai fatto davvero e compila i campi con asterisco.'));
+    const x=el('button','px-1 opacity-70 hover:opacity-100','×');x.type='button';x.title='Nascondi';x.onclick=()=>{delete data.tpl;renderForm();gen()};b.appendChild(x);bn.appendChild(b)}
   const f=$('#form');f.innerHTML='';
   if(!cur){$('#formTitle').textContent='3 · Dettagli';f.appendChild(el('p','text-sm text-slate-500 dark:text-slate-400','Scegli la tipologia qui sopra per vedere gli altri campi.'))}
   else{const T=TYPES[cur];$('#formTitle').textContent='3 · Dettagli · '+T.n;f.appendChild(mk([...T.f,...COMMON_BOT]))}
@@ -263,14 +283,137 @@ function build(){
     [["Ho chiesto all'utente cosa serve, in modo chiaro",!!g('inatt')],['Ho indicato le verifiche già effettuate',ver2]],
     [['Ho scritto il motivo (caso + gruppo destinatario)',!!(g('problema')&&g('grp'))],['Ho indicato le verifiche già effettuate e i risultati',ver2],['Ho indicato le evidenze (log, screenshot, ecc.)',!!(g('evidenze')||hasAll||rows.length)],['Ho specificato cosa chiedo al team destinatario',!!g('richiesta')]],
     [['Caso particolare documentato',cp===CP[0]?!!g('cp1'):cp===CP[1]?!!(g('cp2')&&g('cp3')):true]]][si];
+  const miss=[...COMMON_TOP,...T.f,...COMMON_BOT].filter(fd=>R(fd)&&(!fd.s||fd.s(d))&&!g(fd.id)).map(fd=>fd.l);
+  items.unshift(['Campi obbligatori compilati'+(miss.length?' (mancano: '+miss.join(', ')+')':''),!miss.length,!!d.tpl]);
   items.push(['Ho rimosso i dati sensibili (controllo automatico su password, PIN, OTP)',!bad,true],['Note chiare e non generiche (evita «Ok», «Fatto», «Inoltro», «x cdc»)',!generic,true]);
   return {int:B.filter(Boolean).join('\n\n'),usr,cls,chk:{title:['Prima di chiudere','Prima di inviare','Prima di girare il ticket','Prima di chiudere'][si],items}};
+}
+
+const R=fd=>typeof fd.r==='function'?fd.r(data):!!fd.r;
+const TABN={int:'Work Note interna',usr:"Commento per l'utente",cls:'Nota di chiusura'};
+// ---- Modelli predefiniti (st = indice dello stato finale). Ticket, utente e conferma dell'utente restano da compilare.
+const TPLS=[
+ {id:'p1',n:'Reset password',type:'pwd',st:0,d:{tipo:'Reset password',idv:'Sì',problema:"L'utente non ricorda la password e non riesce ad accedere al proprio account.",risultati:"Identità dell'utente verificata prima del reset. Password reimpostata in Active Directory con cambio obbligatorio al primo accesso.",causa:"Password dimenticata dall'utente.",azris:"Reset della password in Active Directory con cambio obbligatorio al primo accesso.",esito:"L'utente accede correttamente con la nuova password."}},
+ {id:'p2',n:'Sblocco account',type:'pwd',st:0,d:{tipo:'Sblocco account',idv:'Sì',problema:"L'account dell'utente risulta bloccato e non riesce ad accedere.",risultati:"Identità dell'utente verificata. Account risultato bloccato in Active Directory.",causa:"Account bloccato dopo ripetuti tentativi di accesso con credenziali errate.",azris:"Sblocco dell'account in Active Directory.",esito:"L'account risulta sbloccato e l'utente accede correttamente."}},
+ {id:'s1',n:'Stampante offline o che non stampa',type:'prn',st:0,d:{az:['Ping','Riavvio stampante','Riavvio spooler','Pulizia coda di stampa','Pagina di test'],problema:"La stampante risulta offline o non esegue le stampe inviate dall'utente.",risultati:"La stampante risponde al ping. Dopo la pulizia della coda e il riavvio dello spooler la stampa di prova viene eseguita.",causa:"Coda di stampa bloccata sul PC dell'utente.",azris:"Pulizia della coda di stampa e riavvio del servizio spooler.",esito:"La pagina di prova viene stampata correttamente."}},
+ {id:'s2',n:'Stampante: driver da reinstallare',type:'prn',st:0,d:{az:['Reinstallazione driver','Pagina di test'],problema:"La stampante non viene riconosciuta o stampa in modo errato dal PC dell'utente.",risultati:"Il driver di stampa risulta mancante o non funzionante sul PC.",causa:"Driver di stampa mancante o corrotto.",azris:"Reinstallazione del driver e riconfigurazione della stampante.",esito:"La stampa di prova viene eseguita correttamente."}},
+ {id:'n1',n:'VPN: scalamento a Network',type:'net',st:2,d:{conn:'VPN',az:['Verifica credenziali','Reinstallazione client VPN'],problema:"L'utente non riesce a connettersi alla VPN aziendale.",risultati:"Test effettuati su due reti diverse con lo stesso errore. Account attivo, MFA configurata correttamente e utente abilitato alla VPN.",grp:'Network (2° livello)',richiesta:"Controllare le regole firewall e il gateway VPN ed effettuare ulteriori verifiche sul problema di connessione dell'utente."}},
+ {id:'n2',n:'VPN non si connette (risolto)',type:'net',st:0,d:{conn:'VPN',az:['Verifica credenziali','Reinstallazione client VPN'],problema:"L'utente non riesce a connettersi alla VPN aziendale.",risultati:"Account attivo e abilitato alla VPN. Client VPN reinstallato.",causa:"Client VPN non aggiornato o con configurazione danneggiata.",azris:"Reinstallazione del client VPN e nuova configurazione del profilo.",esito:"L'utente si connette correttamente alla VPN."}},
+ {id:'n3',n:'PC senza rete',type:'net',st:0,d:{az:['Ipconfig /release /renew','Flush DNS','Riavvio adattatore'],problema:"Il PC dell'utente non si connette alla rete.",risultati:"Rinnovato l'indirizzo IP, svuotata la cache DNS e riavviato l'adattatore di rete.",causa:"Configurazione di rete del PC non corretta (indirizzo IP o DNS).",azris:"Rinnovo dell'indirizzo IP, svuotamento della cache DNS e riavvio dell'adattatore di rete.",esito:"La connessione di rete funziona correttamente."}},
+ {id:'w1',n:'Setup nuova postazione',type:'pc',st:0,d:{tipo:'Setup nuova postazione',az:['Join al dominio','Installazione software base','Configurazione stampanti','Aggiornamento inventario'],problema:"Richiesta di configurazione di una nuova postazione di lavoro.",risultati:"Postazione configurata e inserita nel dominio con il software di base installato.",causa:"Nuova assegnazione di una postazione di lavoro.",azris:"Configurazione completa della postazione e consegna all'utente.",esito:"Postazione operativa e consegnata all'utente."}},
+ {id:'w2',n:'Sostituzione PC / Laptop',type:'pc',st:0,d:{tipo:'Sostituzione PC/Laptop',az:['Join al dominio','Installazione software base','Migrazione dati','Ritiro vecchia postazione','Aggiornamento inventario'],problema:"Richiesta di sostituzione della postazione di lavoro dell'utente.",risultati:"Nuova postazione configurata, dati migrati dalla vecchia postazione e vecchio dispositivo ritirato.",causa:"Sostituzione della postazione di lavoro.",azris:"Configurazione della nuova postazione, migrazione dei dati e ritiro della vecchia.",esito:"L'utente lavora correttamente sulla nuova postazione."}},
+ {id:'f1',n:'Outlook non si apre (profilo)',type:'sw',st:0,d:{sw:'Outlook',az:['Riparazione'],problema:"Outlook non si apre (errore di caricamento del profilo).",risultati:"Il profilo di Outlook risulta danneggiato.",causa:"Profilo utente corrotto.",azris:"Profilo ricreato, posta e regole reimportate.",esito:"Outlook si apre correttamente e sincronizza la posta."}},
+ {id:'f2',n:'Installazione software',type:'sw',st:0,d:{az:['Installazione','Verifica licenza'],problema:"L'utente richiede l'installazione di un software sul proprio PC.",risultati:"Licenza verificata e disponibile.",causa:"Software non presente sulla postazione.",azris:"Installazione del software e verifica del corretto avvio.",esito:"Il software si avvia correttamente."}},
+ {id:'g1',n:'Scalamento al 2° livello',type:'gen',st:2,d:{}},
+ {id:'g2',n:'In attesa di informazioni dall\'utente',type:'gen',st:1,d:{}},
+ {id:'g3',n:'Utente non raggiungibile',type:'gen',st:3,d:{cp:'Cliente non risponde'}},
+ {id:'g4',n:'Ticket duplicato',type:'gen',st:3,d:{cp:'Ticket duplicato'}},
+ {id:'g5',n:'Richiesta fuori perimetro',type:'gen',st:3,d:{cp:'Fuori perimetro'}}
+];
+const SPEC=['ticket','utente','cliente','tpl','allegato','allegato_x','conf','evidenze','cp1','cp2','cp3','host','ip','mod','sede','ping','inatt'];
+let copiedTxt={},drafts=null,act=null,seq=0;
+
+// ---- Bozze: più ticket in parallelo, salvati nel browser
+const newDraftObj=()=>({id:Date.now()+(seq++),cur:null,data:{cliente:LS('cliente')||''},tab:'int',cp:{}});
+function stash(){const x=drafts.list.find(y=>y.id===act);if(x){x.cur=cur;x.data=data;x.tab=tab;x.cp=copiedTxt}}
+function save(){stash();LS('drafts',{act,list:drafts.list})}
+function load(id){
+  act=id;const x=drafts.list.find(y=>y.id===id);
+  cur=x.cur;data=x.data;tab=x.tab||'int';copiedTxt=x.cp||{};
+  renderTypes();renderForm();gen();
+  const t=document.querySelector('[data-k="ticket"]');if(t)t.focus();
+}
+function addDraft(seed){
+  stash();const x=newDraftObj();
+  if(seed){x.cur=seed.cur;x.data=seed.data;x.tab=seed.tab||'int'}
+  drafts.list.push(x);load(x.id);
+}
+function openIn(seed){ // riusa la bozza corrente se è vuota, altrimenti ne apre una nuova
+  if(!cur&&!data.ticket&&!data.utente&&!data.problema){cur=seed.cur;data=seed.data;copiedTxt={};tab=seed.tab||'int';renderTypes();renderForm();gen()}
+  else addDraft(seed);
+}
+function closeDraft(id){
+  const x=drafts.list.find(y=>y.id===id),dd=id===act?data:x.data;
+  if((dd.ticket||dd.utente||dd.problema)&&!confirm('Chiudere questo ticket? I dati non copiati o salvati andranno persi.'))return;
+  const i=drafts.list.indexOf(x);drafts.list.splice(i,1);
+  if(id===act)load(drafts.list[Math.min(i,drafts.list.length-1)].id);else{renderDrafts();save()}
+}
+function renderDrafts(){
+  const b=$('#drafts');b.innerHTML='';
+  drafts.list.forEach(x=>{
+    const on=x.id===act,dd=on?data:x.data;
+    const w=el('div','flex items-center rounded-lg border text-sm '+(on?'bg-teal-600 border-teal-600 text-white':'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600'));
+    const bt=el('button','px-3 py-1.5 max-w-[14rem] truncate text-left',(dd.ticket||'Nuovo ticket')+(dd.utente?' · '+dd.utente:''));
+    bt.type='button';bt.onclick=()=>{if(!on){stash();load(x.id)}};w.appendChild(bt);
+    if(drafts.list.length>1){const c=el('button','px-2 py-1.5 opacity-70 hover:opacity-100','×');c.type='button';c.title='Chiudi questo ticket';c.onclick=()=>closeDraft(x.id);w.appendChild(c)}
+    b.appendChild(w);
+  });
+  const p=el('button','rounded-lg border border-dashed border-slate-400 px-3 py-1.5 text-sm hover:bg-slate-200 dark:hover:bg-slate-800','+ Altro ticket in parallelo');p.type='button';p.onclick=()=>addDraft();b.appendChild(p);
+}
+
+// ---- Note già copiate
+function renderTicks(){
+  const vis=showTabs();let n=0;
+  document.querySelectorAll('.tabbtn').forEach(b=>{
+    const t=b.dataset.tab,v=t===tab?$('#out').value:texts[t],ok=copiedTxt[t]!==undefined&&copiedTxt[t]===v;
+    b.textContent=TABN[t]+(ok?' ✓':'');if(ok&&vis.includes(t))n++;
+  });
+  const m=$('#copied');
+  if(!cur){m.textContent='';return}
+  const all=n===vis.length;
+  m.textContent=all?'✔ Tutte le note sono state copiate: puoi passare al prossimo ticket.':'Note copiate: '+n+' di '+vis.length;
+  m.className='text-sm mt-2 '+(all?'text-emerald-700 dark:text-emerald-400 font-semibold':'text-slate-500 dark:text-slate-400');
+}
+function pending(){const vis=showTabs();return vis.filter(t=>{const v=t===tab?$('#out').value:texts[t];return copiedTxt[t]!==v})}
+function guard(){
+  if(!(cur&&(data.ticket||data.utente||data.problema)))return true;
+  const p=pending();
+  return !p.length||confirm('Non hai ancora copiato: '+p.map(t=>TABN[t]).join(', ')+'.\nVuoi comunque azzerare il form?');
+}
+
+// ---- Modelli rapidi
+const isDirty=()=>cur&&Object.entries(data).some(([k,v])=>!['cliente','ticket','utente','problema','tpl','stato','cp'].includes(k)&&(Array.isArray(v)?v.length:v===true||(typeof v==='string'&&v.trim()!=='')));
+function applyTpl(t){
+  if(isDirty())addDraft();   // c'è già un ticket in compilazione: il modello va in una nuova scheda
+  const keep=pick(),d=JSON.parse(JSON.stringify(t.d||{}));
+  d.stato=STATI[t.st||0];
+  cur=t.type;data={...d,...keep,tpl:t.n};
+  if(!data.cliente)data.cliente=LS('cliente')||'';
+  copiedTxt={};tab='int';
+  renderTypes();renderForm();gen();
+  const n=document.querySelector('.need')||document.querySelector('[data-k="ticket"]');if(n)n.focus();
+  toast('Modello applicato: completa i campi con asterisco');
+}
+function saveTpl(){
+  if(!cur){toast('Scegli prima la tipologia');return}
+  const n=prompt('Nome del nuovo modello:');if(!n||!n.trim())return;
+  const d=JSON.parse(JSON.stringify(data));SPEC.forEach(k=>delete d[k]);
+  const st=Math.max(0,STATI.indexOf(d.stato));delete d.stato;
+  const l=LS('tpls')||[];l.push({id:'u'+Date.now(),n:n.trim(),type:cur,st,d,custom:1});LS('tpls',l);
+  renderTpls();toast('Modello salvato');
+}
+function renderTpls(){
+  const q=($('#tq').value||'').toLowerCase(),box=$('#tpls');box.innerHTML='';
+  const all=[...TPLS,...(LS('tpls')||[])].filter(t=>!q||(t.n+' '+TYPES[t.type].n).toLowerCase().includes(q));
+  Object.keys(TYPES).forEach(k=>{
+    const list=all.filter(t=>t.type===k);if(!list.length)return;
+    box.appendChild(el('div','text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mt-3 mb-1',TYPES[k].n));
+    list.forEach(t=>{
+      const row=el('div','flex items-stretch gap-1 mb-1');
+      const b=el('button','flex-1 text-left rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm hover:border-teal-500 hover:bg-teal-50 dark:hover:bg-slate-700');b.type='button';
+      b.append(el('span','block font-medium',t.n),el('span','block text-xs text-slate-500 dark:text-slate-400',STATI[t.st||0]));
+      b.onclick=()=>applyTpl(t);row.appendChild(b);
+      if(t.custom){const x=el('button','px-2 text-slate-400 hover:text-red-600','×');x.type='button';x.title='Elimina modello';x.onclick=()=>{if(confirm('Eliminare il modello «'+t.n+'»?')){LS('tpls',(LS('tpls')||[]).filter(y=>y.id!==t.id));renderTpls()}};row.appendChild(x)}
+      box.appendChild(row);
+    });
+  });
+  if(!box.children.length)box.appendChild(el('p','text-sm text-slate-500 dark:text-slate-400','Nessun modello trovato.'));
 }
 
 let texts={int:'',usr:'',cls:''};
 function gen(){
   if(cur)texts=build();else{const m='(Compila i dati e scegli la tipologia: la nota comparirà qui.)';texts={int:m,usr:m,cls:m,chk:{title:'Prima di iniziare',items:[['Scegli la tipologia',false]]}}}
-  showTabs();$('#out').value=texts[tab];renderChk(texts.chk);hint();fit()}
+  showTabs();$('#out').value=texts[tab];renderChk(texts.chk);hint();fit();renderTicks();renderDrafts();save()}
 
 document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{
   texts[tab]=$('#out').value;tab=b.dataset.tab;showTabs();
@@ -280,10 +423,10 @@ async function copy(txt){
   try{await navigator.clipboard.writeText(txt)}catch(e){const t=el('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove()}
   toast('Nota copiata negli appunti');
 }
-$('#copyBtn').onclick=()=>{if(!cur){toast('Scegli prima la tipologia');return}copy($('#out').value)};
-$('#out').addEventListener('input',fit);
-$('#newBtn').onclick=()=>{resetAll();scrollTo({top:0,behavior:'smooth'});toast('Pronto per un nuovo ticket')};
-$('#clearBtn').onclick=()=>{resetAll();toast('Campi puliti')};
+$('#copyBtn').onclick=()=>{if(!cur){toast('Scegli prima la tipologia');return}const v=$('#out').value;copy(v);copiedTxt[tab]=v;renderTicks();save()};
+$('#out').addEventListener('input',()=>{fit();renderTicks()});
+$('#newBtn').onclick=()=>{if(!guard())return;resetAll();scrollTo({top:0,behavior:'smooth'});toast('Pronto per un nuovo ticket')};
+$('#clearBtn').onclick=()=>{if(!guard())return;resetAll();toast('Campi puliti')};
 
 $('#saveBtn').onclick=()=>{
   if(!cur){toast('Scegli prima la tipologia');return}
@@ -310,7 +453,7 @@ function renderHist(){
     const bar=el('div','flex flex-wrap gap-2 text-xs');
     const mk=(t,fn,cls='')=>{const b=el('button','rounded border border-slate-300 dark:border-slate-600 px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-700 '+cls,t);b.onclick=fn;bar.appendChild(b)};
     if(vs.includes('int'))mk('Work note',()=>copy(h.int));if(vs.includes('usr'))mk('Commento',()=>copy(h.usr));if(vs.includes('cls'))mk('Chiusura',()=>copy(h.cls));
-    mk('Riapri',()=>{cur=h.type;data=JSON.parse(JSON.stringify(h.data));renderTypes();renderForm();gen();scrollTo({top:0,behavior:'smooth'})});
+    mk('Riapri',()=>{openIn({cur:h.type,data:JSON.parse(JSON.stringify(h.data)),tab:'int'});scrollTo({top:0,behavior:'smooth'})});
     mk('Elimina',()=>{if(confirm('Eliminare questa nota?')){hist=hist.filter(x=>x!==h);LS('hist',hist);renderHist()}},'text-red-600 dark:text-red-400');
     c.append(top,pre,bar);box.appendChild(c);
   });
@@ -325,7 +468,12 @@ let dark=LS('dark');if(dark===null)dark=matchMedia('(prefers-color-scheme: dark)
 applyTheme(dark);
 $('#themeBtn').onclick=()=>{dark=!dark;LS('dark',dark);applyTheme(dark)};
 
-renderTypes();renderForm();gen();renderHist();{const t=document.querySelector('[data-k="ticket"]');if(t)t.focus()}
+$('#tplBtn').onclick=saveTpl;$('#tq').oninput=renderTpls;
+drafts=LS('drafts');
+if(!drafts||!Array.isArray(drafts.list)||!drafts.list.length)drafts={list:[newDraftObj()]};
+drafts.list.forEach(x=>{if(!x.data)x.data={cliente:''}});
+load(drafts.list.find(x=>x.id===drafts.act)?drafts.act:drafts.list[0].id);
+renderHist();renderTpls();
 </script>
 </body>
 </html>
