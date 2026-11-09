@@ -28,13 +28,14 @@
 
   <div id="drafts" class="flex flex-wrap items-center gap-2 mb-4"></div>
 
-  <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-6 items-start">
+  <div>
   <div class="min-w-0">
   <section class="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 md:p-5 mb-5">
     <h2 class="font-semibold mb-3">1 · Chi ti scrive e per cosa</h2>
     <div id="topForm"></div>
   </section>
   <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">2 · Scegli la tipologia</p>
+  <div id="myTpls" class="flex flex-wrap items-center gap-2 mb-2"></div>
   <div id="types" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-5"></div>
 
   <div class="space-y-5">
@@ -68,7 +69,7 @@
   </div>
 
   </div>
-  <aside class="mt-5 lg:mt-0 lg:sticky lg:top-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+  <aside hidden class="mt-5 lg:mt-0 lg:sticky lg:top-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
     <h2 class="font-semibold">Modelli rapidi</h2>
     <p class="text-xs text-slate-500 dark:text-slate-400 mb-2">Precompilano il form: tu aggiungi ticket, utente e i dati con asterisco.</p>
     <input id="tq" class="inp mb-1" placeholder="Cerca modello...">
@@ -95,23 +96,23 @@ const STATI=['Risolto al 1° livello','In attesa utente','Scalato al 2° livello
 const SN=['Sì','No'];
 const TYPES={
  pwd:{n:'Reset password / Sblocco AD',tag:'AD',intro:"in merito alla sua richiesta relativa all'account di rete,",f:[
-  {id:'tipo',r:1,l:'Intervento',t:'sel',o:['Reset password','Sblocco account','Reset e sblocco']},
-  {id:'idv',r:1,l:'Identità verificata',t:'sel',o:SN},
-  {id:'metodo',r:d=>d.idv==='Sì',l:'Metodo di verifica identità',t:'sel',o:['Domanda di sicurezza','Chiamata al numero registrato','Conferma del responsabile','Verifica di persona (badge/documento)','Codice via SMS/email aziendale','Altro (specificare)'],x:{when:'Altro (specificare)',p:'Descrivi il metodo usato',rep:1}}]},
+  {id:'tipo',l:'Intervento',t:'sel',o:['Reset password','Sblocco account','Reset e sblocco']},
+  {id:'idv',l:'Identità verificata',t:'sel',o:SN},
+  {id:'metodo',l:'Metodo di verifica identità',t:'sel',o:['Domanda di sicurezza','Chiamata al numero registrato','Conferma del responsabile','Verifica di persona (badge/documento)','Codice via SMS/email aziendale','Altro (specificare)'],x:{when:'Altro (specificare)',p:'Descrivi il metodo usato',rep:1}}]},
  prn:{n:'Stampante / Periferica',tag:'STAMPANTE',intro:'in merito al problema con la stampante/periferica segnalato,',f:[
-  {id:'host',r:1,l:'Hostname / IP',t:'txt'},{id:'mod',r:1,l:'Modello',t:'txt'},{id:'sede',l:'Reparto / Sede',t:'txt'},
+  {id:'host',l:'Hostname / IP',t:'txt'},{id:'mod',l:'Modello',t:'txt'},{id:'sede',l:'Reparto / Sede',t:'txt'},
   {id:'err',l:'Errore riscontrato',t:'area'},
   {id:'az',l:'Verifiche rapide (spunta quelle eseguite)',t:'chk',o:['Ping','Riavvio spooler','Reinstallazione driver','Riavvio stampante','Pulizia coda di stampa','Verifica cavo/rete','Pagina di test']}]},
  net:{n:'Rete / VPN',tag:'RETE',intro:'in merito al problema di connettività segnalato,',f:[
-  {id:'ip',r:1,l:'Indirizzo IP utente',t:'txt'},{id:'conn',l:'Tipo connessione',t:'sel',o:['Wi-Fi','Cavo','VPN']},
-  {id:'host',r:1,l:'Hostname PC',t:'txt'},{id:'ping',l:'Esito Ping / Traceroute',t:'area'},
+  {id:'ip',l:'Indirizzo IP utente',t:'txt'},{id:'conn',l:'Tipo connessione',t:'sel',o:['Wi-Fi','Cavo','VPN']},
+  {id:'host',l:'Hostname PC',t:'txt'},{id:'ping',l:'Esito Ping / Traceroute',t:'area'},
   {id:'az',l:'Verifiche rapide (spunta quelle eseguite)',t:'chk',o:['Ipconfig /release /renew','Flush DNS','Riavvio adattatore','Reinstallazione client VPN','Verifica credenziali','Cambio porta/AP']}]},
  pc:{n:'Postazione di lavoro',tag:'POSTAZIONE',intro:'in merito alla sua postazione di lavoro,',f:[
-  {id:'tipo',r:1,l:'Intervento',t:'sel',o:['Setup nuova postazione','Sostituzione PC/Laptop']},
-  {id:'host',r:1,l:'Hostname',t:'txt'},{id:'mod',l:'Modello / Asset tag',t:'txt'},
+  {id:'tipo',l:'Intervento',t:'sel',o:['Setup nuova postazione','Sostituzione PC/Laptop']},
+  {id:'host',l:'Hostname',t:'txt'},{id:'mod',l:'Modello / Asset tag',t:'txt'},
   {id:'az',l:'Verifiche rapide (spunta quelle eseguite)',t:'chk',o:['Join al dominio','Installazione software base','Migrazione dati','Configurazione stampanti','Ritiro vecchia postazione','Aggiornamento inventario']}]},
  sw:{n:'Software',tag:'SOFTWARE',intro:'in merito al problema con il software segnalato,',f:[
-  {id:'sw',r:1,l:'Software e versione',t:'txt'},{id:'err',l:'Errore / Sintomo',t:'area'},{id:'host',r:1,l:'Hostname PC',t:'txt'},
+  {id:'sw',l:'Software e versione',t:'txt'},{id:'err',l:'Errore / Sintomo',t:'area'},{id:'host',l:'Hostname PC',t:'txt'},
   {id:'az',l:'Verifiche rapide (spunta quelle eseguite)',t:'chk',o:['Installazione','Reinstallazione','Riparazione','Aggiornamento','Pulizia cache/profilo','Verifica licenza','Riavvio PC']}]},
  gen:{n:'Generico / Altro',tag:'GENERICO',intro:'in merito alla sua richiesta,',f:[]}
 };
@@ -119,22 +120,23 @@ const COMMON_TOP=[{id:'cliente',r:1,l:'Cliente',t:'txt',p:'Nome del cliente (fir
 const CH=['Telefono','Email','Portale','Chat','Di persona'];
 const CP=['Cliente non risponde','Ticket duplicato','Fuori perimetro'];
 const S=i=>d=>d.stato===STATI[i];
+const OPT=['risultati','evidenze','allegato','note'];
 const COMMON_BOT=[
- {id:'risultati',r:d=>d.stato===STATI[2],l:'Esito delle verifiche (anche cosa NON è stato fatto e perché)',t:'area'},
- {id:'evidenze',r:d=>d.stato===STATI[2],l:'Evidenze (errori, log, riferimenti)',t:'area'},
- {id:'allegato',l:'Allegato',t:'flag',l2:'Il ticket ha un allegato (screenshot, log, foto)',x:{when:true,p:'Cosa contiene? (facoltativo)'}},
  {id:'stato',l:'Stato finale',t:'pill',o:STATI},
- {id:'grp',r:1,l:'Gruppo destinatario (Assignment Group)',t:'txt',s:S(2)},
- {id:'richiesta',r:1,l:'Motivo e richiesta al team destinatario',t:'area',p:'Perché giri il ticket a questo gruppo e cosa ti aspetti che facciano (verifiche ulteriori, identificazione delle cause...)',s:S(2)},
- {id:'inatt',r:1,l:"Cosa serve dall'utente",t:'area',s:S(1)},
- {id:'causa',r:1,l:'Causa del problema',t:'area',s:S(0)},
- {id:'azris',r:1,l:'Azioni che hanno risolto il problema',t:'area',p:'es. profilo ricreato, posta e regole reimportate',s:S(0)},
- {id:'esito',r:1,l:'Esito delle azioni',t:'area',s:S(0)},
- {id:'conf',r:1,l:"Conferma dell'utente tramite",t:'sel',o:CH,s:S(0)},
+ {id:'grp',l:'Gruppo destinatario (Assignment Group)',t:'txt',s:S(2)},
+ {id:'richiesta',l:'Motivo e richiesta al team destinatario',t:'area',p:'Perché giri il ticket a questo gruppo e cosa ti aspetti che facciano (verifiche ulteriori, identificazione delle cause...)',s:S(2)},
+ {id:'inatt',l:"Cosa serve dall'utente",t:'area',s:S(1)},
+ {id:'causa',l:'Causa del problema',t:'area',s:S(0)},
+ {id:'azris',l:'Azioni che hanno risolto il problema',t:'area',p:'es. profilo ricreato, posta e regole reimportate',s:S(0)},
+ {id:'esito',l:'Esito delle azioni',t:'area',s:S(0)},
+ {id:'conf',l:"Conferma dell'utente tramite",t:'sel',o:CH,s:S(0)},
  {id:'cp',l:'Caso particolare',t:'sel',o:CP,nodef:1,s:S(3)},
- {id:'cp1',r:1,l:'Tentativi di contatto (quando e come)',t:'area',s:d=>S(3)(d)&&d.cp===CP[0]},
- {id:'cp2',r:1,l:'N° ticket principale di riferimento',t:'txt',s:d=>S(3)(d)&&d.cp===CP[1]},
- {id:'cp3',r:1,l:'Motivo della duplicazione',t:'area',s:d=>S(3)(d)&&d.cp===CP[1]},
+ {id:'cp1',l:'Tentativi di contatto (quando e come)',t:'area',s:d=>S(3)(d)&&d.cp===CP[0]},
+ {id:'cp2',l:'N° ticket principale di riferimento',t:'txt',s:d=>S(3)(d)&&d.cp===CP[1]},
+ {id:'cp3',l:'Motivo della duplicazione',t:'area',s:d=>S(3)(d)&&d.cp===CP[1]},
+ {id:'risultati',l:'Esito delle verifiche (anche cosa NON è stato fatto e perché)',t:'area'},
+ {id:'evidenze',l:'Evidenze (errori, log, riferimenti)',t:'area'},
+ {id:'allegato',l:'Allegato',t:'flag',l2:'Il ticket ha un allegato (screenshot, log, foto)',x:{when:true,p:'Cosa contiene? (facoltativo)'}},
  {id:'note',l:'Note aggiuntive',t:'area'}];
 
 const $=s=>document.querySelector(s);
@@ -157,7 +159,7 @@ function showTabs(){
   document.querySelectorAll('.tabbtn').forEach(b=>{b.classList.toggle('hidden',!vis.includes(b.dataset.tab));b.setAttribute('aria-selected',b.dataset.tab===tab)});
   return vis;
 }
-function hint(){$('#hint').textContent=HINTS[tab]+' Il testo è modificabile prima della copia.';$('#copyBtn').textContent='Copia '+TNAME[tab]}
+function hint(){$('#hint').textContent=HINTS[tab]+' Il testo è modificabile prima della copia. Scorciatoia: Ctrl+Invio.';$('#copyBtn').textContent='Copia '+TNAME[tab]}
 function renderChk(c){
   const b=$('#chk');b.innerHTML='';b.className='rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 p-3';
   b.appendChild(el('div','text-xs font-semibold uppercase tracking-wide mb-1',c.title));
@@ -213,7 +215,18 @@ function renderForm(){
     const x=el('button','px-1 opacity-70 hover:opacity-100','×');x.type='button';x.title='Nascondi';x.onclick=()=>{delete data.tpl;renderForm();gen()};b.appendChild(x);bn.appendChild(b)}
   const f=$('#form');f.innerHTML='';
   if(!cur){$('#formTitle').textContent='3 · Dettagli';f.appendChild(el('p','text-sm text-slate-500 dark:text-slate-400','Scegli la tipologia qui sopra per vedere gli altri campi.'))}
-  else{const T=TYPES[cur];$('#formTitle').textContent='3 · Dettagli · '+T.n;f.appendChild(mk([...T.f,...COMMON_BOT]))}
+  else{
+    const T=TYPES[cur];$('#formTitle').textContent='3 · Dettagli · '+T.n;
+    f.appendChild(mk([...COMMON_BOT.filter(x=>!OPT.includes(x.id)),...T.f]));
+    const opt=COMMON_BOT.filter(x=>OPT.includes(x.id)),L2=data.stato===STATI[2];
+    const has=opt.some(x=>x.t==='flag'?data[x.id]===true:String(data[x.id]||'').trim()!=='');
+    const det=el('details','mt-4 rounded-lg border border-slate-200 dark:border-slate-700 p-3');
+    det.open=L2||(data._more!==undefined?data._more:has);
+    det.appendChild(el('summary','cursor-pointer text-sm font-semibold select-none',L2?'Verifiche ed evidenze (da indicare per il passaggio al 2° livello)':'Dettagli facoltativi: esito delle verifiche, evidenze, allegato, note'));
+    const gr=mk(opt);gr.classList.add('mt-3');det.appendChild(gr);
+    det.ontoggle=()=>{if(!L2)data._more=det.open};
+    f.appendChild(det);
+  }
   if(fk){const q='[data-k="'+fk+'"]';const t=document.querySelector(q+':checked')||document.querySelector(q);if(t)t.focus()}
 }
 
@@ -245,7 +258,7 @@ function build(){
     B.push(`Motivo: ${ph('problema').replace(/[.\s]+$/,'')}. Le verifiche di primo livello non hanno risolto il problema: si assegna la segnalazione al gruppo ${grp} per l'analisi e l'intervento di competenza.`,
       ver||'Verifiche ed esito delle verifiche: (da compilare)',evi||'Evidenze: (da compilare)','Richiesta: '+ph('richiesta'),note);
   }else{
-    B.push(sec('Caso',[g('problema')]),ver,evi,note,['Prossimo passo: ticket in chiusura, vedere la nota di chiusura.',"Prossimo passo: in attesa dell'utente"+(g('inatt')?' ('+one(g('inatt'))+').':'.'),'',`Prossimo passo: ticket chiuso (${(cp||'').toLowerCase()}).`][si]);
+    B.push(sec('Caso',[g('problema')]),ver,evi,note,['Prossimo passo: ticket in chiusura, vedere la nota di chiusura.',"Prossimo passo: in attesa dell'utente."+(g('inatt')?' Informazioni richieste: '+one(g('inatt')):''),'',`Prossimo passo: ticket chiuso (${(cp||'').toLowerCase()}).`][si]);
   }
   if(cl)B.push('— Helpdesk '+cl);
 
@@ -253,10 +266,11 @@ function build(){
   const ex=cur==='pwd'&&d.tipo?`Abbiamo eseguito: ${d.tipo.toLowerCase()}${d.idv==='Sì'?', previa verifica della sua identità':''}.\n\n`:cur==='pc'&&d.tipo?`Intervento effettuato: ${d.tipo.toLowerCase()}.\n\n`:'';
   const prob=g('problema')?`Problema segnalato: ${one(g('problema'))}\n\n`:'';
   const act=acts.length?`Verifiche già effettuate:\n${acts.map(a=>'  - '+a).join('\n')}\n\n`:'';
+  const blk=(...l)=>{l=l.filter(Boolean);return l.length?l.join('\n')+'\n\n':''};
   const body=[
-    `${cap(T.intro)} le confermiamo che la segnalazione${tr} è stata risolta.\n\n${prob}${ex}${g('azris')?'Cosa abbiamo fatto: '+ph('azris')+'\n\n':''}${g('esito')?'Esito: '+ph('esito')+'\n\n':''}Se dovesse ripresentarsi, risponda a questa comunicazione e riapriremo subito la richiesta.`,
-    `${cap(T.intro)} per proseguire${tr} abbiamo bisogno di un suo riscontro.\n\n${prob}${g('inatt')?'Informazioni richieste: '+ph('inatt')+'\n\n':''}In assenza di risposta potremmo dover chiudere il ticket.`,
-    `${cap(T.intro)} serve un approfondimento specialistico${tr}: abbiamo quindi inoltrato la pratica al nostro supporto di secondo livello.\n\n${prob}${act}Cosa succede ora: il team specialistico analizzerà la segnalazione e la aggiorneremo sull'esito. Non sono necessarie altre azioni da parte sua, salvo nostra richiesta.`,
+    `Le confermiamo che la sua segnalazione${tr} è stata risolta.\n\n${blk(prob.trim(),ex.trim(),g('azris')&&'Cosa abbiamo fatto: '+ph('azris'),g('esito')&&'Esito: '+ph('esito'))}Se dovesse ripresentarsi, risponda a questa comunicazione e riapriremo subito la richiesta.`,
+    `Per poter proseguire con la sua segnalazione${tr} abbiamo bisogno di un suo riscontro.\n\n${blk(prob.trim(),g('inatt')&&'Informazioni richieste: '+ph('inatt'))}In assenza di risposta potremmo dover chiudere il ticket.`,
+    `La sua segnalazione${tr} richiede un approfondimento specialistico, quindi l'abbiamo inoltrata al nostro supporto di secondo livello.\n\n${blk(prob.trim())}Cosa succede ora: il team specialistico analizzerà la segnalazione e la aggiorneremo sull'esito. Non sono necessarie altre azioni da parte sua, salvo nostra richiesta.`,
     cp===CP[0]?`Abbiamo provato a contattarla più volte${tr} senza riuscire a raggiungerla, per questo chiudiamo il ticket.\n\n${g('cp1')?'Tentativi di contatto: '+ph('cp1')+'\n\n':''}Può riaprirlo in qualsiasi momento rispondendo a questa comunicazione.`
     :cp===CP[1]?`La sua richiesta${tr} è già in gestione in un altro ticket.\n\n${g('cp2')?'Ticket di riferimento: '+ph('cp2')+'\n':''}${g('cp3')?'Motivo della duplicazione: '+ph('cp3')+'\n':''}\nChiudiamo questo per evitare duplicati: gli aggiornamenti arriveranno dal ticket principale.`
     :`La sua richiesta${tr} risulta fuori dal perimetro del nostro servizio. Per eventuali dubbi, la invitiamo a contattare il supporto IT interno.`][si];
@@ -363,6 +377,16 @@ function renderTicks(){
   const all=n===vis.length;
   m.textContent=all?'✔ Tutte le note sono state copiate: puoi passare al prossimo ticket.':'Note copiate: '+n+' di '+vis.length;
   m.className='text-sm mt-2 '+(all?'text-emerald-700 dark:text-emerald-400 font-semibold':'text-slate-500 dark:text-slate-400');
+  $('#copyBtn').textContent='Copia '+TNAME[tab]+(vis.some(t=>t!==tab&&copiedTxt[t]!==texts[t])?' e passa alla successiva':'');
+}
+function copyNext(){
+  if(!cur){toast('Scegli prima la tipologia');return}
+  const v=$('#out').value,old=tab;copy(v);copiedTxt[old]=v;texts[old]=v;
+  const vis=showTabs(),i=vis.indexOf(old);
+  const nx=[...vis.slice(i+1),...vis.slice(0,i)].find(t=>copiedTxt[t]!==texts[t]);
+  if(nx){tab=nx;showTabs();$('#out').value=texts[nx];hint();fit();toast(TABN[old]+' copiata · ora: '+TABN[nx])}
+  else toast(TABN[old]+' copiata');
+  renderTicks();save();
 }
 function pending(){const vis=showTabs();return vis.filter(t=>{const v=t===tab?$('#out').value:texts[t];return copiedTxt[t]!==v})}
 function guard(){
@@ -372,7 +396,7 @@ function guard(){
 }
 
 // ---- Modelli rapidi
-const isDirty=()=>cur&&Object.entries(data).some(([k,v])=>!['cliente','ticket','utente','problema','tpl','stato','cp'].includes(k)&&(Array.isArray(v)?v.length:v===true||(typeof v==='string'&&v.trim()!=='')));
+const isDirty=()=>cur&&Object.entries(data).some(([k,v])=>!['cliente','ticket','utente','problema','tpl','stato','cp','_more'].includes(k)&&(Array.isArray(v)?v.length:v===true||(typeof v==='string'&&v.trim()!=='')));
 function applyTpl(t){
   if(isDirty())addDraft();   // c'è già un ticket in compilazione: il modello va in una nuova scheda
   const keep=pick(),d=JSON.parse(JSON.stringify(t.d||{}));
@@ -393,21 +417,16 @@ function saveTpl(){
   renderTpls();toast('Modello salvato');
 }
 function renderTpls(){
-  const q=($('#tq').value||'').toLowerCase(),box=$('#tpls');box.innerHTML='';
-  const all=[...TPLS,...(LS('tpls')||[])].filter(t=>!q||(t.n+' '+TYPES[t.type].n).toLowerCase().includes(q));
-  Object.keys(TYPES).forEach(k=>{
-    const list=all.filter(t=>t.type===k);if(!list.length)return;
-    box.appendChild(el('div','text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mt-3 mb-1',TYPES[k].n));
-    list.forEach(t=>{
-      const row=el('div','flex items-stretch gap-1 mb-1');
-      const b=el('button','flex-1 text-left rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm hover:border-teal-500 hover:bg-teal-50 dark:hover:bg-slate-700');b.type='button';
-      b.append(el('span','block font-medium',t.n),el('span','block text-xs text-slate-500 dark:text-slate-400',STATI[t.st||0]));
-      b.onclick=()=>applyTpl(t);row.appendChild(b);
-      if(t.custom){const x=el('button','px-2 text-slate-400 hover:text-red-600','×');x.type='button';x.title='Elimina modello';x.onclick=()=>{if(confirm('Eliminare il modello «'+t.n+'»?')){LS('tpls',(LS('tpls')||[]).filter(y=>y.id!==t.id));renderTpls()}};row.appendChild(x)}
-      box.appendChild(row);
-    });
+  const box=$('#myTpls'),l=LS('tpls')||[];box.innerHTML='';
+  if(!l.length)return;
+  box.appendChild(el('span','text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400','I miei modelli:'));
+  l.forEach(t=>{
+    const w=el('div','flex items-center rounded-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm');
+    const b=el('button','pl-3 pr-2 py-1 hover:text-teal-600',t.n);b.type='button';b.title=TYPES[t.type].n+' · '+STATI[t.st||0];b.onclick=()=>applyTpl(t);
+    const x=el('button','pr-2 pl-1 py-1 text-slate-400 hover:text-red-600','×');x.type='button';x.title='Elimina modello';
+    x.onclick=()=>{if(confirm('Eliminare il modello «'+t.n+'»?')){LS('tpls',(LS('tpls')||[]).filter(y=>y.id!==t.id));renderTpls()}};
+    w.append(b,x);box.appendChild(w);
   });
-  if(!box.children.length)box.appendChild(el('p','text-sm text-slate-500 dark:text-slate-400','Nessun modello trovato.'));
 }
 
 let texts={int:'',usr:'',cls:''};
@@ -417,13 +436,14 @@ function gen(){
 
 document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{
   texts[tab]=$('#out').value;tab=b.dataset.tab;showTabs();
-  $('#out').value=texts[tab];hint();fit()});
+  $('#out').value=texts[tab];hint();fit();renderTicks()});
 
 async function copy(txt){
   try{await navigator.clipboard.writeText(txt)}catch(e){const t=el('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove()}
   toast('Nota copiata negli appunti');
 }
-$('#copyBtn').onclick=()=>{if(!cur){toast('Scegli prima la tipologia');return}const v=$('#out').value;copy(v);copiedTxt[tab]=v;renderTicks();save()};
+$('#copyBtn').onclick=copyNext;
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();copyNext()}});
 $('#out').addEventListener('input',()=>{fit();renderTicks()});
 $('#newBtn').onclick=()=>{if(!guard())return;resetAll();scrollTo({top:0,behavior:'smooth'});toast('Pronto per un nuovo ticket')};
 $('#clearBtn').onclick=()=>{if(!guard())return;resetAll();toast('Campi puliti')};
@@ -468,7 +488,7 @@ let dark=LS('dark');if(dark===null)dark=matchMedia('(prefers-color-scheme: dark)
 applyTheme(dark);
 $('#themeBtn').onclick=()=>{dark=!dark;LS('dark',dark);applyTheme(dark)};
 
-$('#tplBtn').onclick=saveTpl;$('#tq').oninput=renderTpls;
+$('#tplBtn').onclick=saveTpl;
 drafts=LS('drafts');
 if(!drafts||!Array.isArray(drafts.list)||!drafts.list.length)drafts={list:[newDraftObj()]};
 drafts.list.forEach(x=>{if(!x.data)x.data={cliente:''}});
