@@ -348,9 +348,9 @@ function openIn(seed){ // riusa la bozza corrente se è vuota, altrimenti ne apr
   if(!cur&&!data.ticket&&!data.utente&&!data.problema){cur=seed.cur;data=seed.data;copiedTxt={};tab=seed.tab||'int';renderTypes();renderForm();gen()}
   else addDraft(seed);
 }
-function closeDraft(id){
+async function closeDraft(id){
   const x=drafts.list.find(y=>y.id===id),dd=id===act?data:x.data;
-  if((dd.ticket||dd.utente||dd.problema)&&!confirm('Chiudere questo ticket? I dati non copiati o salvati andranno persi.'))return;
+  if((dd.ticket||dd.utente||dd.problema)&&!(await askOk('Chiudere questo ticket? I dati non copiati o salvati andranno persi.','Chiudi ticket',true)))return;
   const i=drafts.list.indexOf(x);drafts.list.splice(i,1);
   if(id===act)load(drafts.list[Math.min(i,drafts.list.length-1)].id);else{renderDrafts();save()}
 }
@@ -382,29 +382,53 @@ function renderTicks(){
   m.className='text-sm mt-2 '+(all?'text-emerald-700 dark:text-emerald-400 font-semibold':'text-slate-500 dark:text-slate-400');
   $('#copyBtn').textContent='Copia '+TNAME[tab]+(vis.some(t=>t!==tab&&copiedTxt[t]!==texts[t])?' e passa alla successiva':'');
 }
-function copyNext(){
+function dlg(o){
+  return new Promise(res=>{
+    const prev=document.activeElement;
+    const ov=el('div','fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4');
+    const box=el('div','w-full max-w-md rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 shadow-xl p-5');
+    box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');
+    box.appendChild(el('p','text-sm whitespace-pre-line mb-4',o.text));
+    let inp;if(o.input){inp=el('input','inp mb-4');box.appendChild(inp)}
+    const row=el('div','flex justify-end gap-2');
+    const no=el('button','rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700','Annulla');no.type='button';
+    const ok=el('button','rounded-lg px-4 py-2 text-sm font-semibold text-white '+(o.danger?'bg-red-600 hover:bg-red-700':'bg-teal-600 hover:bg-teal-700'),o.ok||'Conferma');ok.type='button';ok.id='dlgOk';
+    const done=v=>{document.removeEventListener('keydown',key,true);ov.remove();if(prev&&prev.focus)prev.focus();res(v)};
+    const key=e=>{
+      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();done(o.input?null:false)}
+      else if(e.key==='Enter'&&document.activeElement!==no&&document.activeElement!==ok){e.preventDefault();e.stopPropagation();done(o.input?inp.value:true)}
+      else if(e.key==='Tab'){const f=[...(inp?[inp]:[]),no,ok],i=f.indexOf(document.activeElement);e.preventDefault();f[(i+(e.shiftKey?f.length-1:1))%f.length].focus()}
+    };
+    no.onclick=()=>done(o.input?null:false);ok.onclick=()=>done(o.input?inp.value:true);
+    ov.onclick=e=>{if(e.target===ov)no.onclick()};
+    row.append(no,ok);box.appendChild(row);ov.appendChild(box);document.body.appendChild(ov);
+    document.addEventListener('keydown',key,true);(inp||no).focus();
+  });
+}
+const askOk=(text,okLabel,danger)=>dlg({text,ok:okLabel,danger});
+async function copyNext(){
   if(!cur){toast('Scegli prima la tipologia');return}
-  const v=$('#out').value,old=tab;copy(v);copiedTxt[old]=v;texts[old]=v;
+  const v=$('#out').value,old=tab,ok=await copy(v);
+  copiedTxt[old]=v;texts[old]=v;
   const vis=showTabs(),i=vis.indexOf(old);
-  const nx=[...vis.slice(i+1),...vis.slice(0,i)].find(t=>copiedTxt[t]!==texts[t]);
+  const nx=ok?[...vis.slice(i+1),...vis.slice(0,i)].find(t=>copiedTxt[t]!==texts[t]):null;
   if(nx){tab=nx;showTabs();$('#out').value=texts[nx];hint();fit();toast(TABN[old]+' copiata · ora: '+TABN[nx])}
-  else toast(TABN[old]+' copiata');
   renderTicks();save();
 }
 function focusFirst(){const c=document.querySelector('[data-k="cliente"]'),t=document.querySelector('[data-k="ticket"]');const x=c&&!c.value.trim()?c:t;if(x)x.focus()}
 function fillCli(){const d=$('#dlCli');d.innerHTML='';(LS('clienti')||[]).forEach(v=>d.appendChild(new Option(v,v)))}
 function rememberCli(v){v=v.trim();if(!v)return;LS('clienti',[v,...(LS('clienti')||[]).filter(x=>x!==v)].slice(0,15));fillCli()}
-function clearAll(){
+async function clearAll(){
   const n=drafts.list.length,filled=drafts.list.filter(x=>{const d=x.id===act?data:x.data;return d.cliente||d.ticket||d.utente||d.problema||x.cur}).length;
   if(!filled&&n===1){toast('Non c\'è nulla da pulire');return}
-  if(!confirm('Sei sicuro di voler chiudere tutte le schede ('+n+') e ripartire da una scheda vuota?'+(filled?'\n\nI dati dei ticket in compilazione andranno persi (le note salvate nella cronologia restano).':'')))return;
+  if(!await askOk('Sei sicuro di voler chiudere tutte le schede ('+n+') e ripartire da una scheda vuota?'+(filled?'\n\nI dati dei ticket in compilazione andranno persi (le note salvate nella cronologia restano).':''),'Sì, pulisci tutto',true))return;
   drafts.list=[newDraftObj()];load(drafts.list[0].id);toast('Schede pulite: scheda vuota pronta');
 }
 function pending(){const vis=showTabs();return vis.filter(t=>{const v=t===tab?$('#out').value:texts[t];return copiedTxt[t]!==v})}
-function guard(){
+async function guard(){
   if(!(cur&&(data.ticket||data.utente||data.problema)))return true;
   const p=pending();
-  return !p.length||confirm('Non hai ancora copiato: '+p.map(t=>TABN[t]).join(', ')+'.\nVuoi comunque azzerare il form?');
+  return !p.length||await askOk('Non hai ancora copiato: '+p.map(t=>TABN[t]).join(', ')+'.\nVuoi comunque azzerare il form?','Azzera comunque',true);
 }
 
 // ---- Modelli rapidi
@@ -419,13 +443,14 @@ function applyTpl(t){
   const n=document.querySelector('.need')||document.querySelector('[data-k="ticket"]');if(n)n.focus();
   toast('Modello applicato: completa i campi con asterisco');
 }
-function saveTpl(){
+async function saveTpl(){
   if(!cur){toast('Scegli prima la tipologia');return}
-  const n=prompt('Nome del nuovo modello:');if(!n||!n.trim())return;
+  const n=await dlg({text:'Nome del nuovo modello:',input:true,ok:'Salva'});if(!n||!n.trim())return;
   const d=JSON.parse(JSON.stringify(data));SPEC.forEach(k=>delete d[k]);
   const st=Math.max(0,STATI.indexOf(d.stato));delete d.stato;
   const l=LS('tpls')||[];l.push({id:'u'+Date.now(),n:n.trim(),type:cur,st,d,custom:1});LS('tpls',l);
-  renderTpls();toast('Modello salvato');
+  renderTpls();
+  if((LS('tpls')||[]).length!==l.length)toast('Il browser non consente di conservare i dati: il modello non è stato salvato');else toast('Modello salvato');
 }
 function renderTpls(){
   const box=$('#myTpls'),l=LS('tpls')||[];box.innerHTML='';
@@ -435,7 +460,7 @@ function renderTpls(){
     const w=el('div','flex items-center rounded-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm');
     const b=el('button','pl-3 pr-2 py-1 hover:text-teal-600',t.n);b.type='button';b.title=TYPES[t.type].n+' · '+STATI[t.st||0];b.onclick=()=>applyTpl(t);
     const x=el('button','pr-2 pl-1 py-1 text-slate-400 hover:text-red-600','×');x.type='button';x.title='Elimina modello';
-    x.onclick=()=>{if(confirm('Eliminare il modello «'+t.n+'»?')){LS('tpls',(LS('tpls')||[]).filter(y=>y.id!==t.id));renderTpls()}};
+    x.onclick=async()=>{if(await askOk('Eliminare il modello «'+t.n+'»?','Elimina',true)){LS('tpls',(LS('tpls')||[]).filter(y=>y.id!==t.id));renderTpls()}};
     w.append(b,x);box.appendChild(w);
   });
 }
@@ -450,14 +475,18 @@ document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{
   $('#out').value=texts[tab];hint();fit();renderTicks()});
 
 async function copy(txt){
-  try{await navigator.clipboard.writeText(txt)}catch(e){const t=el('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove()}
-  toast('Nota copiata negli appunti');
+  let ok=false;
+  try{await navigator.clipboard.writeText(txt);ok=true}
+  catch(e){try{const t=el('textarea');t.value=txt;t.style.cssText='position:fixed;opacity:0';document.body.appendChild(t);t.select();ok=document.execCommand('copy');t.remove()}catch(_){}}
+  if(ok)toast('Nota copiata negli appunti');
+  else{toast('Copia automatica bloccata dal browser: testo selezionato, premi Ctrl+C');if(txt===$('#out').value){$('#out').focus();$('#out').select()}}
+  return ok;
 }
 $('#copyBtn').onclick=copyNext;
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();copyNext()}});
 $('#out').addEventListener('input',()=>{fit();renderTicks()});
-$('#newBtn').onclick=()=>{if(!guard())return;resetAll();scrollTo({top:0,behavior:'smooth'});toast('Pronto per un nuovo ticket')};
-$('#clearBtn').onclick=()=>{if(!guard())return;resetAll();toast('Campi puliti')};
+$('#newBtn').onclick=async()=>{if(!await guard())return;resetAll();scrollTo({top:0,behavior:'smooth'});toast('Pronto per un nuovo ticket')};
+$('#clearBtn').onclick=async()=>{if(!await guard())return;resetAll();toast('Campi puliti')};
 
 $('#saveBtn').onclick=()=>{
   if(!cur){toast('Scegli prima la tipologia');return}
@@ -485,7 +514,7 @@ function renderHist(){
     const mk=(t,fn,cls='')=>{const b=el('button','rounded border border-slate-300 dark:border-slate-600 px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-700 '+cls,t);b.onclick=fn;bar.appendChild(b)};
     if(vs.includes('int'))mk('Work note',()=>copy(h.int));if(vs.includes('usr'))mk('Commento',()=>copy(h.usr));if(vs.includes('cls'))mk('Chiusura',()=>copy(h.cls));
     mk('Riapri',()=>{openIn({cur:h.type,data:JSON.parse(JSON.stringify(h.data)),tab:'int'});scrollTo({top:0,behavior:'smooth'})});
-    mk('Elimina',()=>{if(confirm('Eliminare questa nota?')){hist=hist.filter(x=>x!==h);LS('hist',hist);renderHist()}},'text-red-600 dark:text-red-400');
+    mk('Elimina',async()=>{if(await askOk('Eliminare questa nota?','Elimina',true)){hist=hist.filter(x=>x!==h);LS('hist',hist);renderHist()}},'text-red-600 dark:text-red-400');
     c.append(top,pre,bar);box.appendChild(c);
   });
 }
