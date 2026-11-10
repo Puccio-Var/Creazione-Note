@@ -96,10 +96,9 @@
 const STATI=['Risolto al 1° livello','In attesa utente','Scalato al 2° livello','Chiuso: caso particolare'];
 const SN=['Sì','No'];
 const TYPES={
- pwd:{n:'Reset password / Sblocco AD',tag:'AD',intro:"in merito alla sua richiesta relativa all'account di rete,",f:[
-  {id:'tipo',l:'Intervento',t:'sel',o:['Reset password','Sblocco account','Reset e sblocco']},
-  {id:'idv',l:'Identità verificata',t:'sel',o:SN},
-  {id:'metodo',l:'Metodo di verifica identità',t:'sel',o:['Domanda di sicurezza','Chiamata al numero registrato','Conferma del responsabile','Verifica di persona (badge/documento)','Codice via SMS/email aziendale','Altro (specificare)'],x:{when:'Altro (specificare)',p:'Descrivi il metodo usato',rep:1}}]},
+ pwd:{n:'Reset password / Sblocco AD',tag:'AD',first:1,intro:"in merito alla sua richiesta relativa all'account di rete,",f:[
+  {id:'interv',r:1,hl:1,l:'Intervento (spunta uno o entrambi)',sl:'Intervento',t:'multi',o:['Reset password','Sblocco account']},
+  {id:'metodo',r:1,hl:1,l:"Metodo di verifica dell'identità",t:'sel',o:['Domanda di sicurezza','Chiamata al numero registrato','Conferma del responsabile','Verifica di persona (badge/documento)','Codice via SMS/email aziendale','Altro (specificare)'],x:{when:'Altro (specificare)',p:'Descrivi il metodo usato',rep:1,req:1},s:d=>(d.interv||[]).includes('Reset password')}]},
  prn:{n:'Stampante / Periferica',tag:'STAMPANTE',intro:'in merito al problema con la stampante/periferica segnalato,',f:[
   {id:'host',l:'Hostname / IP',t:'txt'},{id:'mod',l:'Modello',t:'txt'},{id:'sede',l:'Reparto / Sede',t:'txt'},
   {id:'err',l:'Errore riscontrato',t:'area'},
@@ -128,8 +127,7 @@ const COMMON_BOT=[
  {id:'richiesta',l:'Motivo e richiesta al team destinatario',t:'area',p:'Perché giri il ticket a questo gruppo e cosa ti aspetti che facciano (verifiche ulteriori, identificazione delle cause...)',s:S(2)},
  {id:'inatt',l:"Cosa serve dall'utente",t:'area',s:S(1)},
  {id:'causa',l:'Causa del problema',t:'area',s:S(0)},
- {id:'azris',l:'Azioni che hanno risolto il problema',t:'area',p:'es. profilo ricreato, posta e regole reimportate',s:S(0)},
- {id:'esito',l:'Esito delle azioni',t:'area',s:S(0)},
+ {id:'azesito',l:'Azioni ed esito delle azioni effettuate',t:'area',p:'es. Profilo ricreato e posta reimportata: Outlook ora si apre e sincronizza correttamente',s:S(0)},
  {id:'conf',l:"Conferma dell'utente tramite",t:'sel',o:CH,s:S(0)},
  {id:'cp',l:'Caso particolare',t:'sel',o:CP,nodef:1,s:S(3)},
  {id:'cp1',l:'Tentativi di contatto (quando e come)',t:'area',s:d=>S(3)(d)&&d.cp===CP[0]},
@@ -193,18 +191,19 @@ function field(fd){
     i=el('select','inp');if(!fd.nodef)i.appendChild(new Option('Seleziona…',''));fd.o.forEach(o=>i.appendChild(new Option(o,o)));if(data[fd.id]===undefined)data[fd.id]=fd.nodef?fd.o[0]:'';i.value=data[fd.id];i.onchange=()=>{data[fd.id]=i.value;renderForm();gen()};
   }else if(fd.t==='flag'){
     i=el('label','flex items-center gap-2 text-sm cursor-pointer rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2');const c=el('input');c.type='checkbox';c.checked=data[fd.id]===true;c.dataset.k=fd.id;c.onchange=()=>{data[fd.id]=c.checked;renderForm();gen()};i.append(c,fd.l2);
-  }else if(fd.t==='chk'){
-    i=el('div','flex flex-wrap gap-2');const sel=data[fd.id]=data[fd.id]||[];
+  }else if(fd.t==='chk'||fd.t==='multi'){
+    i=el('div','flex flex-wrap gap-2 rounded-lg'+(fd.t==='multi'?' p-1':''));const sel=data[fd.id]=data[fd.id]||[];
     fd.o.forEach(o=>{const l=el('label','flex items-center gap-1.5 text-sm rounded-md border border-slate-300 dark:border-slate-600 px-2 py-1 cursor-pointer');
-      const c=el('input');c.type='checkbox';c.checked=sel.includes(o);c.dataset.k=fd.id+'|'+o;c.onchange=()=>{const a=data[fd.id];c.checked?a.push(o):a.splice(a.indexOf(o),1);gen()};
+      const c=el('input');c.type='checkbox';c.checked=sel.includes(o);c.dataset.k=fd.id+'|'+o;c.onchange=()=>{const a=data[fd.id];c.checked?a.push(o):a.splice(a.indexOf(o),1);if(fd.t==='multi')renderForm();gen()};
       l.append(c,o);i.appendChild(l)});
+    if(need&&(data.tpl||data._v||fd.hl)&&!sel.length)i.classList.add('need');
   }else{
-    i=el(fd.t==='area'?'textarea':'input','inp');if(fd.t==='area')i.rows=2;if(fd.p)i.placeholder=fd.p;i.value=data[fd.id]||'';i.oninput=()=>{data[fd.id]=i.value;if(need&&data.tpl)i.classList.toggle('need',!i.value.trim());gen()};
+    i=el(fd.t==='area'?'textarea':'input','inp');if(fd.t==='area')i.rows=2;if(fd.p)i.placeholder=fd.p;i.value=data[fd.id]||'';i.oninput=()=>{data[fd.id]=i.value;if(need&&(data.tpl||data._v||fd.hl))i.classList.toggle('need',!i.value.trim());gen()};
   }
-  if(['INPUT','SELECT','TEXTAREA'].includes(i.tagName)){i.id='f_'+fd.id;lab.htmlFor=i.id;i.dataset.k=fd.id;if(need&&data.tpl&&!String(data[fd.id]||'').trim())i.classList.add('need')}
+  if(['INPUT','SELECT','TEXTAREA'].includes(i.tagName)){i.id='f_'+fd.id;lab.htmlFor=i.id;i.dataset.k=fd.id;if(need&&(data.tpl||data._v||fd.hl)&&!String(data[fd.id]||'').trim())i.classList.add('need')}
   if(fd.id==='cliente'){i.setAttribute('list','dlCli');i.autocomplete='off';i.onchange=()=>rememberCli(i.value)}
   w.appendChild(i);
-  if(fd.x&&data[fd.id]===fd.x.when){const x=el('input','inp mt-2');x.placeholder=fd.x.p;x.value=data[fd.id+'_x']||'';x.dataset.k=fd.id+'_x';x.oninput=()=>{data[fd.id+'_x']=x.value;gen()};w.appendChild(x)}
+  if(fd.x&&data[fd.id]===fd.x.when){const xr=fd.x.req,x=el('input','inp mt-2');x.placeholder=fd.x.p+(xr?' *':'');x.value=data[fd.id+'_x']||'';x.dataset.k=fd.id+'_x';if(xr&&!x.value.trim())x.classList.add('need');x.oninput=()=>{data[fd.id+'_x']=x.value;if(xr)x.classList.toggle('need',!x.value.trim());gen()};w.appendChild(x)}
   return w;
 }
 function renderForm(){
@@ -219,7 +218,8 @@ function renderForm(){
   if(!cur){$('#formTitle').textContent='3 · Dettagli';f.appendChild(el('p','text-sm text-slate-500 dark:text-slate-400','Scegli la tipologia qui sopra per vedere gli altri campi.'))}
   else{
     const T=TYPES[cur];$('#formTitle').textContent='3 · Dettagli · '+T.n;
-    f.appendChild(mk([...COMMON_BOT.filter(x=>!OPT.includes(x.id)),...T.f]));
+    const bot=COMMON_BOT.filter(x=>!OPT.includes(x.id));
+    f.appendChild(mk(T.first?[bot[0],...T.f,...bot.slice(1)]:[...bot,...T.f]));
     const opt=COMMON_BOT.filter(x=>OPT.includes(x.id)),L2=data.stato===STATI[2];
     const has=opt.some(x=>x.t==='flag'?data[x.id]===true:String(data[x.id]||'').trim()!=='');
     const det=el('details','mt-4 rounded-lg border border-slate-200 dark:border-slate-700 p-3');
@@ -240,8 +240,10 @@ function build(){
   const sec=(l,a)=>{a=a.filter(Boolean);return !a.length?'':a.length===1&&!a[0].includes('\n')?`${l}: ${a[0].replace(/^- /,'')}`:`${l}:\n${a.join('\n')}`};
   const rows=[],acts=[];
   T.f.forEach(fd=>{
-    if(fd.t==='chk')acts.push(...(d[fd.id]||[]));
-    else{const v=val(fd);if(v)rows.push([fd.l,one(v)])}
+    if(fd.s&&!fd.s(d))return;
+    if(fd.t==='multi'){const v=(d[fd.id]||[]).join(' e ');if(v)rows.push([fd.sl||fd.l,v])}
+    else if(fd.t==='chk')acts.push(...(d[fd.id]||[]));
+    else{const v=val(fd);if(v)rows.push([fd.sl||fd.l,one(v)])}
   });
   const risu=g('risultati'),azTxt=[acts.join('; '),one(risu)].filter(Boolean).join('. ');
   const hasAll=d.allegato===true,allX=g('allegato_x');
@@ -265,12 +267,13 @@ function build(){
   if(cl)B.push('— Helpdesk '+cl);
 
   // 2) COMMENTO per l'utente: solo ciò che deve vedere il cliente
-  const ex=cur==='pwd'&&d.tipo?`Abbiamo eseguito: ${d.tipo.toLowerCase()}${d.idv==='Sì'?', previa verifica della sua identità':''}.\n\n`:cur==='pc'&&d.tipo?`Intervento effettuato: ${d.tipo.toLowerCase()}.\n\n`:'';
+  const iv=d.interv||[],rs=iv.includes('Reset password'),sb=iv.includes('Sblocco account');
+  const ex=cur==='pwd'&&iv.length?`Abbiamo eseguito: ${[rs&&'il reset della password',sb&&"lo sblocco dell'account"].filter(Boolean).join(' e ')}${rs?', previa verifica della sua identità':''}.\n\n`:cur==='pc'&&d.tipo?`Intervento effettuato: ${d.tipo.toLowerCase()}.\n\n`:'';
   const prob=g('problema')?`Problema segnalato: ${one(g('problema'))}\n\n`:'';
   const act=acts.length?`Verifiche già effettuate:\n${acts.map(a=>'  - '+a).join('\n')}\n\n`:'';
   const blk=(...l)=>{l=l.filter(Boolean);return l.length?l.join('\n')+'\n\n':''};
   const body=[
-    `Le confermiamo che la sua segnalazione${tr} è stata risolta.\n\n${blk(prob.trim(),ex.trim(),g('azris')&&'Cosa abbiamo fatto: '+ph('azris'),g('esito')&&'Esito: '+ph('esito'))}Se dovesse ripresentarsi, risponda a questa comunicazione e riapriremo subito la richiesta.`,
+    `Le confermiamo che la sua segnalazione${tr} è stata risolta.\n\n${blk(prob.trim(),ex.trim(),g('azesito')&&'Cosa abbiamo fatto ed esito: '+ph('azesito'))}Se dovesse ripresentarsi, risponda a questa comunicazione e riapriremo subito la richiesta.`,
     `Per poter proseguire con la sua segnalazione${tr} abbiamo bisogno di un suo riscontro.\n\n${blk(prob.trim(),g('inatt')&&'Informazioni richieste: '+ph('inatt'))}In assenza di risposta potremmo dover chiudere il ticket.`,
     `La sua segnalazione${tr} richiede un approfondimento specialistico, quindi l'abbiamo inoltrata al nostro supporto di secondo livello.\n\n${blk(prob.trim())}Cosa succede ora: il team specialistico analizzerà la segnalazione e la aggiorneremo sull'esito. Non sono necessarie altre azioni da parte sua, salvo nostra richiesta.`,
     cp===CP[0]?`Abbiamo provato a contattarla più volte${tr} senza riuscire a raggiungerla, per questo chiudiamo il ticket.\n\n${g('cp1')?'Tentativi di contatto: '+ph('cp1')+'\n\n':''}Può riaprirlo in qualsiasi momento rispondendo a questa comunicazione.`
@@ -281,7 +284,7 @@ function build(){
   // 3) NOTA DI CHIUSURA: Problema / Causa / Azioni / Esito / Conferma
   const ch=`NOTA DI CHIUSURA · Ticket ${tk||'(n. da inserire)'}${cl?' · '+cl:''}`,sig=cl?`\n— Helpdesk ${cl}`:'';
   let cls;
-  if(si===0)cls=[ch,`Problema: ${ph('problema')}`,`Causa: ${ph('causa')}`,`Azioni: ${ph('azris')}`,`Esito: ${ph('esito')}`,
+  if(si===0)cls=[ch,`Problema: ${ph('problema')}`,`Causa: ${ph('causa')}`,`Azioni ed esito: ${ph('azesito')}`,
     `Conferma: ${conf?`${u||"L'utente"} ha confermato la risoluzione tramite ${conf.toLowerCase()}.`:'(indicare chi ha confermato e tramite quale canale)'}`].join('\n')+sig;
   else if(si===3)cls=[ch+' · '+cp,`Problema: ${ph('problema')}`,
     cp===CP[0]?`Tentativi di contatto: ${ph('cp1')}\nEsito: Ticket chiuso per mancato riscontro dell'utente, avvisato che la segnalazione può essere riaperta.`
@@ -291,18 +294,20 @@ function build(){
 
   // Checklist (slide 11) + regole d'oro
   const bad=/(password|pwd|psw|pin|otp|token)\s*[:=]\s*\S+/i.test(Object.values(d).filter(v=>typeof v==='string').join(' '));
-  const keys=['problema','richiesta','esito','causa','azris','note','risultati','evidenze','inatt'];
-  const generic=keys.some(k=>/^(ok|fatto|risolto|funziona|inoltro|per competenza|verifichiamo|in lavorazione|\.)\.?$/i.test(g(k))||/\bx\s?cdc\b/i.test(g(k)))||['problema','richiesta','esito','causa','azris'].some(k=>g(k)&&g(k).length<10);
+  const keys=['problema','richiesta','causa','azesito','note','risultati','evidenze','inatt'];
+  const generic=keys.some(k=>/^(ok|fatto|risolto|funziona|inoltro|per competenza|verifichiamo|in lavorazione|\.)\.?$/i.test(g(k))||/\bx\s?cdc\b/i.test(g(k)))||['problema','richiesta','causa','azesito'].some(k=>g(k)&&g(k).length<10);
   const ver2=!!azTxt;
   const items=[
-    [['Il cliente ha confermato il funzionamento',!!conf],['È stata descritta la risoluzione (problema, causa, azioni, esito)',!!(g('problema')&&g('causa')&&g('azris')&&g('esito'))]],
+    [['Il cliente ha confermato il funzionamento',!!conf],['È stata descritta la risoluzione (problema, causa, azioni ed esito)',!!(g('problema')&&g('causa')&&g('azesito'))]],
     [["Ho chiesto all'utente cosa serve, in modo chiaro",!!g('inatt')],['Ho indicato le verifiche già effettuate',ver2]],
     [['Ho scritto il motivo (caso + gruppo destinatario)',!!(g('problema')&&g('grp'))],['Ho indicato le verifiche già effettuate e i risultati',ver2],['Ho indicato le evidenze (log, screenshot, ecc.)',!!(g('evidenze')||hasAll||rows.length)],['Ho specificato cosa chiedo al team destinatario',!!g('richiesta')]],
     [['Caso particolare documentato',cp===CP[0]?!!g('cp1'):cp===CP[1]?!!(g('cp2')&&g('cp3')):true]]][si];
-  const miss=[...COMMON_TOP,...T.f,...COMMON_BOT].filter(fd=>R(fd)&&(!fd.s||fd.s(d))&&!g(fd.id)).map(fd=>fd.l);
-  items.unshift(['Campi obbligatori compilati'+(miss.length?' (mancano: '+miss.join(', ')+')':''),!miss.length,!!d.tpl]);
+  const vf=[...COMMON_TOP,...T.f,...COMMON_BOT].filter(fd=>!fd.s||fd.s(d)),mf=[];
+  vf.forEach(fd=>{if(R(fd)&&!g(fd.id))mf.push(fd);else if(fd.x&&fd.x.req&&d[fd.id]===fd.x.when&&!g(fd.id+'_x'))mf.push({l:fd.x.p,hl:fd.hl})});
+  const miss=mf.map(fd=>fd.sl||fd.l);
+  items.unshift(['Campi obbligatori compilati'+(miss.length?' (mancano: '+miss.join(', ')+')':''),!miss.length,!!(d.tpl||d._v||mf.some(fd=>fd.hl))]);
   items.push(['Ho rimosso i dati sensibili (controllo automatico su password, PIN, OTP)',!bad,true],['Note chiare e non generiche (evita «Ok», «Fatto», «Inoltro», «x cdc»)',!generic,true]);
-  return {int:B.filter(Boolean).join('\n\n'),usr,cls,chk:{title:['Prima di chiudere','Prima di inviare','Prima di girare il ticket','Prima di chiudere'][si],items}};
+  return {int:B.filter(Boolean).join('\n\n'),usr,cls,miss,chk:{title:['Prima di chiudere','Prima di inviare','Prima di girare il ticket','Prima di chiudere'][si],items}};
 }
 
 const R=fd=>typeof fd.r==='function'?fd.r(data):!!fd.r;
@@ -335,7 +340,7 @@ function stash(){const x=drafts.list.find(y=>y.id===act);if(x){x.cur=cur;x.data=
 function save(){stash();LS('drafts',{act,list:drafts.list})}
 function load(id){
   act=id;const x=drafts.list.find(y=>y.id===id);
-  cur=x.cur;data=x.data;tab=x.tab||'int';copiedTxt=x.cp||{};
+  cur=x.cur;data=x.data;migrate(data,cur);tab=x.tab||'int';copiedTxt=x.cp||{};
   renderTypes();renderForm();gen();
   focusFirst();
 }
@@ -345,7 +350,7 @@ function addDraft(seed){
   drafts.list.push(x);load(x.id);
 }
 function openIn(seed){ // riusa la bozza corrente se è vuota, altrimenti ne apre una nuova
-  if(!cur&&!data.ticket&&!data.utente&&!data.problema){cur=seed.cur;data=seed.data;copiedTxt={};tab=seed.tab||'int';renderTypes();renderForm();gen()}
+  if(!cur&&!data.ticket&&!data.utente&&!data.problema){migrate(seed.data,seed.cur);cur=seed.cur;data=seed.data;copiedTxt={};tab=seed.tab||'int';renderTypes();renderForm();gen()}
   else addDraft(seed);
 }
 async function closeDraft(id){
@@ -391,7 +396,7 @@ function dlg(o){
     box.appendChild(el('p','text-sm whitespace-pre-line mb-4',o.text));
     let inp;if(o.input){inp=el('input','inp mb-4');box.appendChild(inp)}
     const row=el('div','flex justify-end gap-2');
-    const no=el('button','rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700','Annulla');no.type='button';
+    const no=el('button','rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700',o.no||'Annulla');no.type='button';
     const ok=el('button','rounded-lg px-4 py-2 text-sm font-semibold text-white '+(o.danger?'bg-red-600 hover:bg-red-700':'bg-teal-600 hover:bg-teal-700'),o.ok||'Conferma');ok.type='button';ok.id='dlgOk';
     const done=v=>{document.removeEventListener('keydown',key,true);ov.remove();if(prev&&prev.focus)prev.focus();res(v)};
     const key=e=>{
@@ -405,15 +410,25 @@ function dlg(o){
     document.addEventListener('keydown',key,true);(inp||no).focus();
   });
 }
-const askOk=(text,okLabel,danger)=>dlg({text,ok:okLabel,danger});
+const askOk=(text,okLabel,danger,noLabel)=>dlg({text,ok:okLabel,danger,no:noLabel});
 async function copyNext(){
   if(!cur){toast('Scegli prima la tipologia');return}
+  const mi=texts.miss||[];
+  if(mi.length&&!(await askOk('Mancano campi obbligatori:\n• '+mi.join('\n• ')+'\n\nVuoi copiare comunque questa nota?','Copia comunque',false,'Torna al form'))){
+    data._v=true;renderForm();gen();const n=document.querySelector('.need');if(n)n.focus();return}
   const v=$('#out').value,old=tab,ok=await copy(v);
   copiedTxt[old]=v;texts[old]=v;
   const vis=showTabs(),i=vis.indexOf(old);
   const nx=ok?[...vis.slice(i+1),...vis.slice(0,i)].find(t=>copiedTxt[t]!==texts[t]):null;
   if(nx){tab=nx;showTabs();$('#out').value=texts[nx];hint();fit();toast(TABN[old]+' copiata · ora: '+TABN[nx])}
   renderTicks();save();
+}
+function migrate(d,type){
+  if(!d)return;
+  if(d.azris!==undefined||d.esito!==undefined){const a=String(d.azris||'').trim().replace(/[.\s]+$/,''),e=String(d.esito||'').trim();if(!d.azesito)d.azesito=[a,e].filter(Boolean).join('. ');delete d.azris;delete d.esito}
+  if(type==='pwd'&&(d.tipo!==undefined||d.idv!==undefined)){
+    if(!d.interv){const t=d.tipo||'';d.interv=t==='Reset e sblocco'?['Reset password','Sblocco account']:t?[t]:[]}
+    delete d.tipo;delete d.idv}
 }
 function focusFirst(){const c=document.querySelector('[data-k="cliente"]'),t=document.querySelector('[data-k="ticket"]');const x=c&&!c.value.trim()?c:t;if(x)x.focus()}
 function fillCli(){const d=$('#dlCli');d.innerHTML='';(LS('clienti')||[]).forEach(v=>d.appendChild(new Option(v,v)))}
@@ -432,11 +447,11 @@ async function guard(){
 }
 
 // ---- Modelli rapidi
-const isDirty=()=>cur&&Object.entries(data).some(([k,v])=>!['cliente','ticket','utente','problema','tpl','stato','cp','_more'].includes(k)&&(Array.isArray(v)?v.length:v===true||(typeof v==='string'&&v.trim()!=='')));
+const isDirty=()=>cur&&Object.entries(data).some(([k,v])=>!['cliente','ticket','utente','problema','tpl','stato','cp','_more','_v'].includes(k)&&(Array.isArray(v)?v.length:v===true||(typeof v==='string'&&v.trim()!=='')));
 function applyTpl(t){
   if(isDirty())addDraft();   // c'è già un ticket in compilazione: il modello va in una nuova scheda
   const keep=pick(),d=JSON.parse(JSON.stringify(t.d||{}));
-  d.stato=STATI[t.st||0];
+  migrate(d,t.type);d.stato=STATI[t.st||0];
   cur=t.type;data={...d,...keep,tpl:t.n};
   copiedTxt={};tab='int';
   renderTypes();renderForm();gen();
