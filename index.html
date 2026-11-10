@@ -116,26 +116,27 @@ const TYPES={
   {id:'az',l:'Verifiche rapide (spunta quelle eseguite)',t:'chk',o:['Installazione','Reinstallazione','Riparazione','Aggiornamento','Pulizia cache/profilo','Verifica licenza','Riavvio PC']}]},
  gen:{n:'Generico / Altro',tag:'GENERICO',intro:'in merito alla sua richiesta,',f:[]}
 };
-const COMMON_TOP=[{id:'cliente',r:1,l:'Cliente',t:'txt',p:'Nome del cliente (firma delle note)'},{id:'ticket',r:1,l:'N° ticket',t:'txt',p:'INC0001234'},{id:'utente',r:1,l:'Utente',t:'txt',p:'Nome Cognome / username'},{id:'problema',r:1,l:'Problema segnalato',t:'area',p:'Cosa non funziona, dal punto di vista dell\'utente'}];
+const COMMON_TOP=[{id:'cliente',r:1,l:'Cliente',t:'txt',p:'Nome del cliente (firma delle note)'},{id:'ticket',r:1,l:'N° ticket',t:'txt',p:'INC0001234'},{id:'utente',r:1,l:'Utente',t:'txt',p:'Nome Cognome / username'},{id:'problema',r:1,l:'Problema segnalato',t:'area',p:'Cosa non funziona, in modo chiaro e senza sigle (compare anche nel messaggio all\'utente)'}];
 const CH=['Telefono','Email','Portale','Chat','Di persona'];
 const CP=['Cliente non risponde','Ticket duplicato','Fuori perimetro'];
+const CPT=['utente non raggiungibile','ticket duplicato','richiesta fuori perimetro'],CPL=['Utente non raggiungibile','Ticket duplicato','Richiesta fuori perimetro'];
+const CHP={Telefono:'tramite telefono',Email:'tramite email',Portale:'tramite il portale',Chat:'tramite chat','Di persona':'di persona'};
 const S=i=>d=>d.stato===STATI[i];
-const OPT=['risultati','evidenze','allegato','note'];
+const OPT=['allegato','evidenze','note'];
 const COMMON_BOT=[
  {id:'stato',l:'Stato finale',t:'pill',o:STATI},
+ {id:'causa',l:'Causa del problema',t:'area',s:S(0)},
+ {id:'azesito',l:'Azioni ed esito delle azioni effettuate',t:'area',p:'Cosa hai fatto e com\'è andata (indica anche cosa NON hai potuto fare e perché)',s:d=>d.stato!==STATI[3]},
  {id:'grp',l:'Gruppo destinatario (Assignment Group)',t:'txt',s:S(2)},
  {id:'richiesta',l:'Motivo e richiesta al team destinatario',t:'area',p:'Perché giri il ticket a questo gruppo e cosa ti aspetti che facciano (verifiche ulteriori, identificazione delle cause...)',s:S(2)},
  {id:'inatt',l:"Cosa serve dall'utente",t:'area',s:S(1)},
- {id:'causa',l:'Causa del problema',t:'area',s:S(0)},
- {id:'azesito',l:'Azioni ed esito delle azioni effettuate',t:'area',p:'es. Profilo ricreato e posta reimportata: Outlook ora si apre e sincronizza correttamente',s:S(0)},
- {id:'conf',l:"Conferma dell'utente tramite",t:'sel',o:CH,s:S(0)},
+ {id:'conf',l:"Conferma di risoluzione dell'utente tramite",t:'sel',o:CH,s:S(0)},
  {id:'cp',l:'Caso particolare',t:'sel',o:CP,nodef:1,s:S(3)},
  {id:'cp1',l:'Tentativi di contatto (quando e come)',t:'area',s:d=>S(3)(d)&&d.cp===CP[0]},
  {id:'cp2',l:'N° ticket principale di riferimento',t:'txt',s:d=>S(3)(d)&&d.cp===CP[1]},
  {id:'cp3',l:'Motivo della duplicazione',t:'area',s:d=>S(3)(d)&&d.cp===CP[1]},
- {id:'risultati',l:'Esito delle verifiche (anche cosa NON è stato fatto e perché)',t:'area'},
- {id:'evidenze',l:'Evidenze (errori, log, riferimenti)',t:'area'},
  {id:'allegato',l:'Allegato',t:'flag',l2:'Il ticket ha un allegato (screenshot, log, foto)',x:{when:true,p:'Cosa contiene? (facoltativo)'}},
+ {id:'evidenze',l:'Evidenze (errori, log, riferimenti)',t:'area'},
  {id:'note',l:'Note aggiuntive',t:'area'}];
 
 const $=s=>document.querySelector(s);
@@ -178,7 +179,7 @@ function renderTypes(){
   });
 }
 function field(fd){
-  const w=el('div',fd.t==='chk'||fd.t==='pill'||fd.t==='area'?'sm:col-span-2 lg:col-span-3':'');
+  const w=el('div',fd.t==='chk'||fd.t==='pill'||fd.t==='area'||fd.t==='flag'?'sm:col-span-2 lg:col-span-3':'');
   const need=R(fd);const lab=el('label','lbl',fd.l);if(need)lab.append(el('span','text-red-600',' *'));w.appendChild(lab);
   let i;
   if(fd.t==='pill'){
@@ -218,16 +219,8 @@ function renderForm(){
   if(!cur){$('#formTitle').textContent='3 · Dettagli';f.appendChild(el('p','text-sm text-slate-500 dark:text-slate-400','Scegli la tipologia qui sopra per vedere gli altri campi.'))}
   else{
     const T=TYPES[cur];$('#formTitle').textContent='3 · Dettagli · '+T.n;
-    const bot=COMMON_BOT.filter(x=>!OPT.includes(x.id));
-    f.appendChild(mk(T.first?[bot[0],...T.f,...bot.slice(1)]:[...bot,...T.f]));
-    const opt=COMMON_BOT.filter(x=>OPT.includes(x.id)),L2=data.stato===STATI[2];
-    const has=opt.some(x=>x.t==='flag'?data[x.id]===true:String(data[x.id]||'').trim()!=='');
-    const det=el('details','mt-4 rounded-lg border border-slate-200 dark:border-slate-700 p-3');
-    det.open=L2||(data._more!==undefined?data._more:has);
-    det.appendChild(el('summary','cursor-pointer text-sm font-semibold select-none',L2?'Verifiche ed evidenze (da indicare per il passaggio al 2° livello)':'Dettagli facoltativi: esito delle verifiche, evidenze, allegato, note'));
-    const gr=mk(opt);gr.classList.add('mt-3');det.appendChild(gr);
-    det.ontoggle=()=>{if(!L2)data._more=det.open};
-    f.appendChild(det);
+    const bot=COMMON_BOT.filter(x=>!OPT.includes(x.id)),opt=COMMON_BOT.filter(x=>OPT.includes(x.id));
+    f.appendChild(mk([...(T.first?[bot[0],...T.f,...bot.slice(1)]:[...bot,...T.f]),...opt]));
   }
   if(fk){const q='[data-k="'+fk+'"]';const t=document.querySelector(q+':checked')||document.querySelector(q);if(t)t.focus()}
 }
@@ -245,7 +238,7 @@ function build(){
     else if(fd.t==='chk')acts.push(...(d[fd.id]||[]));
     else{const v=val(fd);if(v)rows.push([fd.sl||fd.l,one(v)])}
   });
-  const risu=g('risultati'),azTxt=[acts.join('; '),one(risu)].filter(Boolean).join('. ');
+  const az=g('azesito'),azTxt=[acts.join('; '),one(az)].filter(Boolean).join('. ');
   const hasAll=d.allegato===true,allX=g('allegato_x');
   const conf=g('conf');
   const cp=si===3?d.cp:'';
@@ -253,16 +246,16 @@ function build(){
   const grp=g('grp')||'(gruppo da indicare)';
 
   // 1) WORK NOTE interna: Motivo / Verifiche / Evidenze / Richiesta (routing)
-  const head=`${si===2?'WORK NOTE · ROUTING → '+grp:'WORK NOTE'}\nTicket ${tk||'(n. da inserire)'} · ${T.n}\n${cl?'Cliente: '+cl+'\n':''}Utente: ${u||'non indicato'}\nStato: ${st}${cp?' ('+cp+')':''}\nAllegato: ${hasAll?'SÌ, VERIFICARE ALLEGATO'+(allX?' ('+allX+')':''):'No'}`;
-  const ver=acts.length?'Verifiche:\n'+acts.map((a,i)=>`${i+1}. ${a}`).join('\n')+(risu?'\nEsito delle verifiche: '+risu:''):risu?'Esito delle verifiche: '+risu:'';
+  const head=`${si===2?'WORK NOTE · ROUTING → '+grp:'WORK NOTE'}\nTicket ${tk||'(n. da inserire)'} · ${T.n}\n${cl?'Cliente: '+cl+'\n':''}Utente: ${u||'non indicato'}\nStato: ${si===3?'Chiuso ('+(CPT[CP.indexOf(cp)]||'caso particolare')+')':st}\nAllegato: ${hasAll?'SÌ, VERIFICARE ALLEGATO'+(allX?' ('+allX+')':''):'No'}`;
+  const ver=acts.length?'Verifiche:\n'+acts.map((a,i)=>`${i+1}. ${a}`).join('\n')+(az?'\nAzioni ed esito: '+one(az):''):az?(si===2?'Verifiche: ':'Azioni ed esito: ')+one(az):'';
   const evi=sec('Evidenze',[...rows.map(([l,v])=>`- ${l}: ${v}`),g('evidenze')&&'- '+one(g('evidenze')),hasAll&&"- Allegato: verificare l'allegato"+(allX?' ('+allX+')':'')]);
   const note=g('note')?'Note: '+g('note'):'';
   const B=[head];
   if(si===2){
-    B.push(`Motivo: ${ph('problema').replace(/[.\s]+$/,'')}. Le verifiche di primo livello non hanno risolto il problema: si assegna la segnalazione al gruppo ${grp} per l'analisi e l'intervento di competenza.`,
-      ver||'Verifiche ed esito delle verifiche: (da compilare)',evi||'Evidenze: (da compilare)','Richiesta: '+ph('richiesta'),note);
+    B.push(`Motivo: ${ph('problema').replace(/[.\s]+$/,'')}. Le verifiche di primo livello non hanno risolto il problema: la segnalazione viene assegnata al gruppo ${g('grp')||'(da indicare)'} per l'analisi e l'intervento di competenza.`,
+      ver||'Verifiche: (da compilare)',evi||'Evidenze: (da compilare)','Richiesta: '+ph('richiesta'),note);
   }else{
-    B.push(sec('Caso',[g('problema')]),ver,evi,note,['Prossimo passo: ticket in chiusura, vedere la nota di chiusura.',"Prossimo passo: in attesa dell'utente."+(g('inatt')?' Informazioni richieste: '+one(g('inatt')):''),'',`Prossimo passo: ticket chiuso (${(cp||'').toLowerCase()}).`][si]);
+    B.push(sec('Caso',[g('problema')]),ver,evi,note,['Prossimo passo: chiudere il ticket (vedi la nota di chiusura).',"Prossimo passo: attendere il riscontro dell'utente."+(g('inatt')?' Informazioni richieste: '+one(g('inatt')):''),'',`Prossimo passo: ticket chiuso (${CPT[CP.indexOf(cp)]||'caso particolare'}).`][si]);
   }
   if(cl)B.push('— Helpdesk '+cl);
 
@@ -273,11 +266,11 @@ function build(){
   const act=acts.length?`Verifiche già effettuate:\n${acts.map(a=>'  - '+a).join('\n')}\n\n`:'';
   const blk=(...l)=>{l=l.filter(Boolean);return l.length?l.join('\n')+'\n\n':''};
   const body=[
-    `Le confermiamo che la sua segnalazione${tr} è stata risolta.\n\n${blk(prob.trim(),ex.trim(),g('azesito')&&'Cosa abbiamo fatto ed esito: '+ph('azesito'))}Se dovesse ripresentarsi, risponda a questa comunicazione e riapriremo subito la richiesta.`,
+    `Le confermiamo che la sua segnalazione${tr} è stata risolta.\n\n${blk(prob.trim(),ex.trim(),g('azesito')&&'Intervento eseguito ed esito: '+ph('azesito'))}Se dovesse ripresentarsi, risponda a questa comunicazione e riapriremo subito la richiesta.`,
     `Per poter proseguire con la sua segnalazione${tr} abbiamo bisogno di un suo riscontro.\n\n${blk(prob.trim(),g('inatt')&&'Informazioni richieste: '+ph('inatt'))}In assenza di risposta potremmo dover chiudere il ticket.`,
-    `La sua segnalazione${tr} richiede un approfondimento specialistico, quindi l'abbiamo inoltrata al nostro supporto di secondo livello.\n\n${blk(prob.trim())}Cosa succede ora: il team specialistico analizzerà la segnalazione e la aggiorneremo sull'esito. Non sono necessarie altre azioni da parte sua, salvo nostra richiesta.`,
-    cp===CP[0]?`Abbiamo provato a contattarla più volte${tr} senza riuscire a raggiungerla, per questo chiudiamo il ticket.\n\n${g('cp1')?'Tentativi di contatto: '+ph('cp1')+'\n\n':''}Può riaprirlo in qualsiasi momento rispondendo a questa comunicazione.`
-    :cp===CP[1]?`La sua richiesta${tr} è già in gestione in un altro ticket.\n\n${g('cp2')?'Ticket di riferimento: '+ph('cp2')+'\n':''}${g('cp3')?'Motivo della duplicazione: '+ph('cp3')+'\n':''}\nChiudiamo questo per evitare duplicati: gli aggiornamenti arriveranno dal ticket principale.`
+    `La sua segnalazione${tr} richiede un approfondimento specialistico, quindi l'abbiamo inoltrata al nostro supporto di secondo livello.\n\n${blk(prob.trim())}Cosa succede ora: il team specialistico analizzerà la segnalazione e le comunicheremo l'esito. Non sono necessarie altre azioni da parte sua, salvo nostra diversa indicazione.`,
+    cp===CP[0]?`Per la sua segnalazione${tr} abbiamo provato più volte a contattarla senza riuscire a raggiungerla, quindi procediamo con la chiusura del ticket.\n\n${g('cp1')?'Tentativi di contatto: '+ph('cp1')+'\n\n':''}Può riaprirlo in qualsiasi momento rispondendo a questa comunicazione.`
+    :cp===CP[1]?`La sua richiesta${tr} risulta già in gestione in un altro ticket.\n\n${g('cp2')?'Ticket di riferimento: '+ph('cp2')+'\n':''}${g('cp3')?'Motivo della duplicazione: '+ph('cp3')+'\n':''}\nChiudiamo questo ticket per evitare duplicati: gli aggiornamenti arriveranno dal ticket principale.`
     :`La sua richiesta${tr} risulta fuori dal perimetro del nostro servizio. Per eventuali dubbi, la invitiamo a contattare il supporto IT interno.`][si];
   const usr=`Gentile ${u||'utente'},\n\n${body}\n\nCordiali saluti,\nHelpdesk ${cl||'IT'}`;
 
@@ -285,16 +278,16 @@ function build(){
   const ch=`NOTA DI CHIUSURA · Ticket ${tk||'(n. da inserire)'}${cl?' · '+cl:''}`,sig=cl?`\n— Helpdesk ${cl}`:'';
   let cls;
   if(si===0)cls=[ch,`Problema: ${ph('problema')}`,`Causa: ${ph('causa')}`,`Azioni ed esito: ${ph('azesito')}`,
-    `Conferma: ${conf?`${u||"L'utente"} ha confermato la risoluzione tramite ${conf.toLowerCase()}.`:'(indicare chi ha confermato e tramite quale canale)'}`].join('\n')+sig;
-  else if(si===3)cls=[ch+' · '+cp,`Problema: ${ph('problema')}`,
-    cp===CP[0]?`Tentativi di contatto: ${ph('cp1')}\nEsito: Ticket chiuso per mancato riscontro dell'utente, avvisato che la segnalazione può essere riaperta.`
+    `Conferma: ${conf?`${u||"L'utente"} ha confermato la risoluzione ${CHP[conf]||'tramite '+conf.toLowerCase()}.`:'(indicare chi ha confermato e tramite quale canale)'}`].join('\n')+sig;
+  else if(si===3)cls=[ch+' · '+(CPL[CP.indexOf(cp)]||cp),`Problema: ${ph('problema')}`,
+    cp===CP[0]?`Tentativi di contatto: ${ph('cp1')}\nEsito: Ticket chiuso per mancato riscontro dell'utente, che è stato avvisato della possibilità di riaprire la segnalazione.`
     :cp===CP[1]?`Esito: Ticket duplicato.\nTicket principale di riferimento: ${ph('cp2')}\nMotivo della duplicazione: ${ph('cp3')}`
     :`Esito: Richiesta fuori perimetro. Utente informato e invitato a contattare l'IT interno per eventuali dubbi.`].join('\n')+sig;
   else cls='(Il ticket non è in chiusura: la nota di chiusura si genera con lo stato «Risolto al 1° livello» o «Chiuso: caso particolare».)';
 
   // Checklist (slide 11) + regole d'oro
   const bad=/(password|pwd|psw|pin|otp|token)\s*[:=]\s*\S+/i.test(Object.values(d).filter(v=>typeof v==='string').join(' '));
-  const keys=['problema','richiesta','causa','azesito','note','risultati','evidenze','inatt'];
+  const keys=['problema','richiesta','causa','azesito','note','evidenze','inatt'];
   const generic=keys.some(k=>/^(ok|fatto|risolto|funziona|inoltro|per competenza|verifichiamo|in lavorazione|\.)\.?$/i.test(g(k))||/\bx\s?cdc\b/i.test(g(k)))||['problema','richiesta','causa','azesito'].some(k=>g(k)&&g(k).length<10);
   const ver2=!!azTxt;
   const items=[
@@ -426,6 +419,7 @@ async function copyNext(){
 function migrate(d,type){
   if(!d)return;
   if(d.azris!==undefined||d.esito!==undefined){const a=String(d.azris||'').trim().replace(/[.\s]+$/,''),e=String(d.esito||'').trim();if(!d.azesito)d.azesito=[a,e].filter(Boolean).join('. ');delete d.azris;delete d.esito}
+  if(d.risultati!==undefined){if(!d.azesito)d.azesito=String(d.risultati||'').trim();delete d.risultati}
   if(type==='pwd'&&(d.tipo!==undefined||d.idv!==undefined)){
     if(!d.interv){const t=d.tipo||'';d.interv=t==='Reset e sblocco'?['Reset password','Sblocco account']:t?[t]:[]}
     delete d.tipo;delete d.idv}
