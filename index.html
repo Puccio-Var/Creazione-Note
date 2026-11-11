@@ -135,7 +135,7 @@ const COMMON_BOT=[
  {id:'cp1',l:'Tentativi di contatto (quando e come)',t:'area',s:d=>S(3)(d)&&d.cp===CP[0]},
  {id:'cp2',l:'N° ticket principale di riferimento',t:'txt',s:d=>S(3)(d)&&d.cp===CP[1]},
  {id:'cp3',l:'Motivo della duplicazione',t:'area',s:d=>S(3)(d)&&d.cp===CP[1]},
- {id:'allegato',l:'Allegato',t:'flag',l2:'Il ticket ha un allegato (screenshot, log, foto)',x:{when:true,p:'Cosa contiene? (facoltativo)'}},
+ {id:'allegato',l:'Allegato',t:'flag',l2:'Il ticket ha un allegato',sub:{id:'alltipi',o:['Documento','Immagine','Cartella zip','Altro'],altro:'Altro',aid:'allaltro',ap:'Di che allegato si tratta? (facoltativo)'}},
  {id:'evidenze',l:'Evidenze (errori, log, riferimenti)',t:'area'},
  {id:'note',l:'Note aggiuntive',t:'area'}];
 
@@ -204,6 +204,18 @@ function field(fd){
   if(['INPUT','SELECT','TEXTAREA'].includes(i.tagName)){i.id='f_'+fd.id;lab.htmlFor=i.id;i.dataset.k=fd.id;if(need&&(data.tpl||data._v||fd.hl)&&!String(data[fd.id]||'').trim())i.classList.add('need')}
   if(fd.id==='cliente'){i.setAttribute('list','dlCli');i.autocomplete='off';i.onchange=()=>rememberCli(i.value)}
   w.appendChild(i);
+  if(fd.sub&&data[fd.id]===true){
+    const sb=fd.sub,sel=data[sb.id]=data[sb.id]||[],g=el('div','mt-2 rounded-lg border border-slate-200 dark:border-slate-700 p-3');
+    g.appendChild(el('div','text-xs text-slate-500 dark:text-slate-400 mb-2','Tipo di allegato (puoi sceglierne più di uno)'));
+    const row=el('div','flex flex-wrap gap-2');
+    sb.o.forEach(o=>{const l=el('label','flex items-center gap-1.5 text-sm rounded-md border border-slate-300 dark:border-slate-600 px-2 py-1 cursor-pointer');
+      const c=el('input');c.type='checkbox';c.checked=sel.includes(o);c.dataset.k=sb.id+'|'+o;
+      c.onchange=()=>{c.checked?sel.push(o):sel.splice(sel.indexOf(o),1);if(o===sb.altro)renderForm();gen()};
+      l.append(c,o);row.appendChild(l)});
+    g.appendChild(row);
+    if(sel.includes(sb.altro)){const x=el('input','inp mt-2');x.placeholder=sb.ap;x.value=data[sb.aid]||'';x.dataset.k=sb.aid;x.oninput=()=>{data[sb.aid]=x.value;gen()};g.appendChild(x)}
+    w.appendChild(g);
+  }
   if(fd.x&&data[fd.id]===fd.x.when){const xr=fd.x.req,x=el('input','inp mt-2');x.placeholder=fd.x.p+(xr?' *':'');x.value=data[fd.id+'_x']||'';x.dataset.k=fd.id+'_x';if(xr&&!x.value.trim())x.classList.add('need');x.oninput=()=>{data[fd.id+'_x']=x.value;if(xr)x.classList.toggle('need',!x.value.trim());gen()};w.appendChild(x)}
   return w;
 }
@@ -239,7 +251,9 @@ function build(){
     else{const v=val(fd);if(v)rows.push([fd.sl||fd.l,one(v)])}
   });
   const az=g('azesito'),azTxt=[acts.join('; '),one(az)].filter(Boolean).join('. ');
-  const hasAll=d.allegato===true,allX=g('allegato_x');
+  const hasAll=d.allegato===true;
+  const tp=(d.alltipi||[]).map(t=>t==='Altro'?(g('allaltro')?'altro: '+one(g('allaltro')):'altro'):t.toLowerCase());
+  const allX=tp.length>1?tp.slice(0,-1).join(', ')+' e '+tp[tp.length-1]:tp[0]||'';
   const conf=g('conf');
   const cp=si===3?d.cp:'';
   const tr=tk?` (ticket ${tk})`:'';
@@ -248,7 +262,7 @@ function build(){
   // 1) WORK NOTE interna: Motivo / Verifiche / Evidenze / Richiesta (routing)
   const head=`${si===2?'WORK NOTE · ROUTING → '+grp:'WORK NOTE'}\nTicket ${tk||'(n. da inserire)'} · ${T.n}\n${cl?'Cliente: '+cl+'\n':''}Utente: ${u||'non indicato'}\nStato: ${si===3?'Chiuso ('+(CPT[CP.indexOf(cp)]||'caso particolare')+')':st}\nAllegato: ${hasAll?'SÌ, VERIFICARE ALLEGATO'+(allX?' ('+allX+')':''):'No'}`;
   const ver=acts.length?'Verifiche:\n'+acts.map((a,i)=>`${i+1}. ${a}`).join('\n')+(az?'\nAzioni ed esito: '+one(az):''):az?(si===2?'Verifiche: ':'Azioni ed esito: ')+one(az):'';
-  const evi=sec('Evidenze',[...rows.map(([l,v])=>`- ${l}: ${v}`),g('evidenze')&&'- '+one(g('evidenze')),hasAll&&"- Allegato: verificare l'allegato"+(allX?' ('+allX+')':'')]);
+  const evi=sec('Evidenze',[...rows.map(([l,v])=>`- ${l}: ${v}`),g('evidenze')&&'- '+one(g('evidenze')),hasAll&&'- Allegato da verificare'+(allX?' ('+allX+')':'')]);
   const note=g('note')?'Note: '+g('note'):'';
   const B=[head];
   if(si===2){
@@ -324,7 +338,7 @@ const TPLS=[
  {id:'g4',n:'Ticket duplicato',type:'gen',st:3,d:{cp:'Ticket duplicato'}},
  {id:'g5',n:'Richiesta fuori perimetro',type:'gen',st:3,d:{cp:'Fuori perimetro'}}
 ];
-const SPEC=['ticket','utente','cliente','tpl','allegato','allegato_x','conf','evidenze','cp1','cp2','cp3','host','ip','mod','sede','ping','inatt'];
+const SPEC=['ticket','utente','cliente','tpl','allegato','allegato_x','alltipi','allaltro','conf','evidenze','cp1','cp2','cp3','host','ip','mod','sede','ping','inatt'];
 let copiedTxt={},drafts=null,act=null,seq=0;
 
 // ---- Bozze: più ticket in parallelo, salvati nel browser
@@ -419,6 +433,7 @@ async function copyNext(){
 function migrate(d,type){
   if(!d)return;
   if(d.azris!==undefined||d.esito!==undefined){const a=String(d.azris||'').trim().replace(/[.\s]+$/,''),e=String(d.esito||'').trim();if(!d.azesito)d.azesito=[a,e].filter(Boolean).join('. ');delete d.azris;delete d.esito}
+  if(d.allegato_x!==undefined){if(d.allegato===true&&String(d.allegato_x).trim()&&!d.alltipi){d.alltipi=['Altro'];d.allaltro=String(d.allegato_x).trim()}delete d.allegato_x}
   if(d.risultati!==undefined){if(!d.azesito)d.azesito=String(d.risultati||'').trim();delete d.risultati}
   if(type==='pwd'&&(d.tipo!==undefined||d.idv!==undefined)){
     if(!d.interv){const t=d.tipo||'';d.interv=t==='Reset e sblocco'?['Reset password','Sblocco account']:t?[t]:[]}
