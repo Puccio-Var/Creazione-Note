@@ -285,8 +285,8 @@ function build(){
   const blk=(...l)=>{l=l.filter(Boolean);return l.length?l.join('\n')+'\n\n':''};
   const body=[
     `Le confermiamo che la sua segnalazione${tr} è stata risolta.\n\n${blk(prob.trim(),ex.trim(),g('azesito')&&'Intervento eseguito ed esito: '+ph('azesito'))}Se dovesse ripresentarsi, risponda a questa comunicazione e riapriremo subito la richiesta.`,
-    `Per poter proseguire con la sua segnalazione${tr} abbiamo bisogno di un suo riscontro.\n\n${blk(prob.trim(),g('inatt')&&'Informazioni richieste: '+ph('inatt'))}In assenza di risposta potremmo dover chiudere il ticket.`,
-    `La sua segnalazione${tr} richiede un approfondimento specialistico, quindi l'abbiamo inoltrata al nostro supporto di secondo livello.\n\n${blk(prob.trim())}Cosa succede ora: il team specialistico analizzerà la segnalazione e le comunicheremo l'esito. Non sono necessarie altre azioni da parte sua, salvo nostra diversa indicazione.`,
+    `Per poter proseguire con la sua segnalazione${tr} abbiamo bisogno di un suo riscontro.\n\n${blk(prob.trim(),g('inatt')&&'Informazioni richieste: '+ph('inatt'))}Se non riceveremo un suo riscontro, come previsto dalla procedura provvederemo alla chiusura della segnalazione.${pf.riapri===false?'':' Resteremo comunque a sua disposizione per riaprirla in qualsiasi momento.'}`,
+    `La sua segnalazione${tr} risulta scalata al team specialistico di secondo livello, che analizzerà il problema e le fornirà l'esito necessario per risolverla.\n\n${blk(prob.trim())}Non sono necessarie altre azioni da parte sua, salvo nostra diversa indicazione.`,
     cp===CP[0]?`Per la sua segnalazione${tr} abbiamo provato più volte a contattarla senza riuscire a raggiungerla, quindi procediamo con la chiusura del ticket.${g('cp1')?'\n\nTentativi di contatto: '+ph('cp1'):''}${pf.riapri===false?'':'\n\nPuò riaprirlo in qualsiasi momento rispondendo a questa comunicazione.'}`
     :cp===CP[1]?`La sua richiesta${tr} risulta già in gestione in un altro ticket.\n\n${g('cp2')?'Ticket di riferimento: '+ph('cp2')+'\n':''}${g('cp3')?'Motivo della duplicazione: '+ph('cp3')+'\n':''}\nChiudiamo questo ticket per evitare duplicati: gli aggiornamenti arriveranno dal ticket principale.`
     :`La sua richiesta${tr} risulta fuori dal perimetro del nostro servizio. Per eventuali dubbi, la invitiamo a contattare il supporto IT interno.`][si];
@@ -316,7 +316,7 @@ function build(){
   vf.forEach(fd=>{if(R(fd)&&!g(fd.id))mf.push(fd);else if(fd.x&&fd.x.req&&d[fd.id]===fd.x.when&&!g(fd.id+'_x'))mf.push({l:fd.x.p,hl:fd.hl})});
   const miss=mf.map(fd=>fd.sl||fd.l);
   items.unshift(['Campi obbligatori compilati'+(miss.length?' (mancano: '+miss.join(', ')+')':''),!miss.length,!!(d.tpl||d._v||mf.some(fd=>fd.hl))]);
-  items.push(['Ho rimosso i dati sensibili (controllo automatico su password, PIN, OTP)',!bad,true],['Note chiare e non generiche (evita «Ok», «Fatto», «Inoltro», «x cdc»)',!generic,true]);
+  items.push(['Ho rimosso i dati sensibili (controllo automatico su password, PIN, OTP)',!bad,true],['Inserisci note chiare e non generiche (evita «Ok», «Fatto», «Inoltro», «x cdc»)',!generic,true]);
   return {int:B.filter(Boolean).join('\n\n'),usr,cls,miss,chk:{title:['Prima di chiudere','Prima di inviare','Prima di girare il ticket','Prima di chiudere'][si],items}};
 }
 
