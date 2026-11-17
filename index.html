@@ -121,6 +121,7 @@ const COMMON_TOP=[{id:'cliente',r:1,l:'Cliente',t:'txt',p:'Nome del cliente (fir
 const CH=['Telefono','Email','Portale','Chat','Di persona'];
 const CP=['Cliente non risponde','Ticket duplicato','Fuori perimetro'];
 const CPT=['utente non raggiungibile','ticket duplicato','richiesta fuori perimetro'],CPL=['Utente non raggiungibile','Ticket duplicato','Richiesta fuori perimetro'];
+const saluto=(d=new Date())=>{const h=d.getHours();return h<13?'Buongiorno':h<18?'Buon pomeriggio':'Buonasera'};
 const CHP={Telefono:'tramite telefono',Email:'tramite email',Portale:'tramite il portale',Chat:'tramite chat','Di persona':'di persona'};
 const S=i=>d=>d.stato===STATI[i];
 const OPT=['allegato','evidenze','note'];
@@ -294,13 +295,17 @@ function build(){
 
   // 3) NOTA DI CHIUSURA: viene letta anche dall'utente, quindi testo chiaro e senza titolo né firma
   let cls;
-  if(si===0)cls=[`Problema: ${ph('problema')}`,`Causa: ${ph('causa')}`,`Azioni ed esito: ${ph('azesito')}`,
-    `Conferma: ${conf?`${u||"L'utente"} ha confermato la risoluzione ${CHP[conf]||'tramite '+conf.toLowerCase()}.`:'(indicare chi ha confermato e tramite quale canale)'}`].join('\n');
-  else if(si===3)cls=[`Problema: ${ph('problema')}`,
-    cp===CP[0]?`Tentativi di contatto: ${ph('cp1')}\nEsito: Il ticket viene chiuso per mancato riscontro.${pf.riapri===false?'':' La segnalazione può essere riaperta in qualsiasi momento.'}`
-    :cp===CP[1]?`Esito: Il ticket viene chiuso perché duplicato.\nTicket principale di riferimento: ${ph('cp2')}\nMotivo della duplicazione: ${ph('cp3')}`
-    :`Esito: La richiesta risulta fuori dal perimetro del servizio e il ticket viene chiuso. Per eventuali dubbi è possibile contattare il supporto IT interno.`].join('\n');
+  const fin=k=>{const t=ph(k);return /[.!?…]$/.test(t)?t:t+'.'};
+  if(si===0)cls=['La segnalazione è stata risolta.',
+    `Il problema riscontrato era il seguente: ${fin('problema')} Dalle verifiche effettuate è emerso che la causa era: ${fin('causa')} Per risolverlo abbiamo svolto queste attività, con il relativo esito: ${fin('azesito')}`,
+    conf?`${u||"L'utente"} ha confermato la risoluzione ${CHP[conf]||'tramite '+conf.toLowerCase()}.`:'(indicare chi ha confermato e tramite quale canale)',
+    'Restiamo a disposizione per qualsiasi ulteriore necessità.'].join('\n\n');
+  else if(si===3)cls=[`Il problema segnalato era il seguente: ${fin('problema')}`,
+    cp===CP[0]?`Abbiamo provato più volte a contattare l'utente, senza ricevere riscontro. Tentativi di contatto effettuati: ${fin('cp1')}\n\nProcediamo pertanto con la chiusura del ticket.${pf.riapri===false?'':' La segnalazione potrà essere riaperta in qualsiasi momento.'}`
+    :cp===CP[1]?`La richiesta risulta già in gestione nel ticket ${ph('cp2')}, pertanto questo ticket viene chiuso perché duplicato. Il motivo della duplicazione è il seguente: ${fin('cp3')}`
+    :`La richiesta risulta fuori dal perimetro del servizio, pertanto il ticket viene chiuso. Per eventuali dubbi è possibile contattare il supporto IT interno.`].join('\n\n');
   else cls='(Il ticket non è in chiusura: la nota di chiusura si genera con lo stato «Risolto al 1° livello» o «Chiuso: caso particolare».)';
+  if(si===0||si===3)cls=`${saluto()}${u?' '+u:''},\n\n${cls}\n\nCordiali saluti,\n${pf.firma||'Helpdesk '+(cl||'IT')}`;
 
   // Checklist (slide 11) + regole d'oro
   const bad=/(password|pwd|psw|pin|otp|token)\s*[:=]\s*\S+/i.test(Object.values(d).filter(v=>typeof v==='string').join(' '));
